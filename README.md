@@ -153,6 +153,11 @@ return plainText string
 
 ### 与链节点云服务协同工作的方法
 
+getKeyStore(did)
+获得keystore。（keystore现在叫didttm）
+params did
+return ct // didttm的内容，它是密文。
+
 getPubByDid (did)
 使用did获取公钥
 params did string
