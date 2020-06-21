@@ -4,6 +4,7 @@ const sm = require('./lib/index.js')
 // const axios = require('axios')
 // const sm4 = require('sm-crypto').sm4;
 const sm4 = require('gm-crypt').sm4;
+const sm4Li = require('./lib/sm4.js').default;
 // import instance from './lib/instanceAxios'
 // import utils from './lib/utils'
 const {instance} = require('./lib/instanceAxios')
@@ -472,6 +473,7 @@ module.exports = {
   sm2,
   sm3,
   sm4,
+  sm4Li,
   getKeyStore,
   encryptDidttm,
   decryptDidttm,
