@@ -1,6 +1,6 @@
 {
   "name": "token-sdk-server",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "现在token-sdk-server还在开发阶段，不建议大家使用。 与链节点云服务协同工作的服务端代码包。 它有一个在前端使用的兄弟版本：`token-sdk-client`。",
   "main": "index.js",
   "scripts": {
@@ -8,6 +8,11 @@
   },
   "author": "",
   "license": "ISC",
+  "keywords": [
+    "token",
+    "sdk",
+    "server"
+  ],
   "dependencies": {
     "axios": "^0.19.2",
     "elliptic": "^6.5.2",

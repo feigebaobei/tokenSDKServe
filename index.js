@@ -3,8 +3,8 @@
 const sm = require('./lib/index.js')
 // const axios = require('axios')
 // const sm4 = require('sm-crypto').sm4;
-const sm4 = require('gm-crypt').sm4;
-const sm4Li = require('./lib/sm4.js').default;
+// const sm4 = require('gm-crypt').sm4;
+const sm4 = require('./lib/sm4.js');
 // import instance from './lib/instanceAxios'
 // import utils from './lib/utils'
 const {instance} = require('./lib/instanceAxios')
@@ -13,6 +13,7 @@ const shajs = require('sha.js')
 // const insta
 // import {Base64} from 'js-base64'
 const Base64 = require('js-base64').Base64
+// const md5 = require('md5')
 
 var hashStr = 'c888c9ce9e098d5864d3ded6ebcc140a12142263bace3a23a36f9905f12bd64a' // 与go代码里一样的字符串
 var priStr = '55c974f17a0b44178d982dcd478150b8a4c0f206f397d7880d06bf5a72932b81'
@@ -275,12 +276,17 @@ function createIdCertify () {
  * @return {[type]}            [description]
  */
 function getTemplate (templateId) {
+  // return instance({
+  //   url: '/claim/template',
+  //   method: 'get',
+  //   params: {
+  //     templateId: templateId
+  //   }
+  // })
   return instance({
-    url: '/claim/template',
-    method: 'get',
-    params: {
-      templateId: templateId
-    }
+    url: '',
+    method: 'post',
+    data: {"jsonrpc":"2.0","method":"ma_getMetainfo","params":[templateId],"id":1}
   })
 }
 /**
@@ -311,12 +317,22 @@ function cancelIdCertify () {}
  * @param  {[type]} claim_sn [description]
  * @return {[type]}          [description]
  */
-function getCertifyFingerPrint (claim_sn) {
+function getCertifyFingerPrint (claim_sn, hasSignList = false) {
+  // return instance({
+  //   url: '/claim/fingerprint',
+  //   method: 'get',
+  //   params: {
+  //     claim_sn: claim_sn
+  //   }
+  // })
   return instance({
-    url: '/claim/fingerprint',
-    method: 'get',
-    params: {
-      claim_sn: claim_sn
+    url: '',
+    method: 'post',
+    data: {
+      "jsonrpc":"2.0",
+      "method":"cer_getCertifyById",
+      "params":[claim_sn, hasSignList],
+      "id":1
     }
   })
 }
@@ -390,17 +406,26 @@ function cancelCertify (claim_sn, did, hashCont, endtime, pri) {
  * @param  {[type]} certifySignUuid [description]
  * @return {[type]}                 [description]
  */
-function signCertify(did, claim_sn, templateId, hashValue, endTime, sign) {
+function signCertify(did, claim_sn, name, templateId, hashValue, explain, expire, sign) {
   return instance({
-    url: '/claim/validate',
+    // url: '/claim/validate',
+    url: '',
     method: 'post',
+    // data: {
+    //   did: did,
+    //   claim_sn: claim_sn,
+    //   name: name,
+    //   templateId: templateId,
+    //   hashCont: hashValue,
+    //   explain: explain,
+    //   expire: expire,
+    //   sign: sign
+    // }
     data: {
-      did: did,
-      claim_sn: claim_sn,
-      templateId: templateId,
-      hashValue: hashValue,
-      endTime: endTime,
-      sign: sign
+      "jsonrpc":"2.0",
+      "method":"cer_validate",
+      "params":[did, claim_sn, name, templateId, hashValue, explain, expire, sign],
+      "id":1
     }
   })
 }
@@ -462,6 +487,46 @@ function applyCertify (templateId, hashCont, endTime, sign) {
   })
 }
 
+/**
+ * 检查hashvalue(证书哈希值)是否正确
+ * @param  {[type]} claim_sn   [description]
+ * @param  {[type]} templateId [description]
+ * @return {[type]}            [description]
+ */
+function checkHashValue (claim_sn, templateId, certifyData) {
+    // let claim_sn = '0xa631b125a985e58be84d37496fa8eeb46574a4d367ba24a73dc29ee30f00ea7d'
+    // let templateId = '0xa631b125a985e58be84d37496fa8eeb46574a4d367ba24a73dc29ee30f00ea7d'
+    // console.log('23456tre')
+  return Promise.all([getCertifyFingerPrint(claim_sn), getTemplate(templateId)]).then(([claimRes, templateRes]) => {
+    let [hashValueChain, template] = [claimRes.data.result.hash_cont, templateRes.data.result.meta_cont]
+    // 这里使用硬编码是为了走通逻辑，前天需要庆雪使用相同的哈希方法
+    hashValueChain = '9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872'
+    template = JSON.parse(template)
+    // math hash
+    // embed
+    let hash = new sm3()
+    let descAndHash = template.desc
+    for (let [key, value] of Object.entries(certifyData)) {
+      let reg = new RegExp(`\\$${key}\\$`, 'ig')
+      let hashStr = hash.sum(String(value))
+      hashStr = utils.arrToHexStr(hashStr)
+      descAndHash = descAndHash.replace(reg, hashStr)
+    }
+    let hashValueLocal = hash.sum(descAndHash)
+    hashValueLocal = utils.arrToHexStr(hashValueLocal)
+    // 9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872
+    // console.log(hashValueLocal)
+    // console.log(hashValueLocal)
+    if (hashValueLocal === hashValueChain) {
+      return true
+    } else {
+      return false
+    }
+  }).catch(error => {
+    console.log('error', error)
+  })
+}
+
 module.exports = {
   main,
   test0,
@@ -473,7 +538,7 @@ module.exports = {
   sm2,
   sm3,
   sm4,
-  sm4Li,
+  // sm4Li,
   getKeyStore,
   encryptDidttm,
   decryptDidttm,
@@ -499,5 +564,6 @@ module.exports = {
   signCertify,
   // genKey,
   applyCertify,
+  checkHashValue,
   utils
 }

@@ -120,7 +120,7 @@ sm3是引用sm.js的sm3。
 参考链接：https://www.npmjs.com/package/sm.js
 
 let hash = new sm3() // 得到sm3实例
-let digest = hash.sum('str') // 得到'str'的散列值
+let digest = hash.sum('str') // 得到'str'的散列值 // 参数必须是string
 
 ### sm4
 
