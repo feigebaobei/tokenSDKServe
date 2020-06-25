@@ -500,7 +500,7 @@ function checkHashValue (claim_sn, templateId, certifyData) {
   return Promise.all([getCertifyFingerPrint(claim_sn), getTemplate(templateId)]).then(([claimRes, templateRes]) => {
     let [hashValueChain, template] = [claimRes.data.result.hash_cont, templateRes.data.result.meta_cont]
     // 这里使用硬编码是为了走通逻辑，前天需要庆雪使用相同的哈希方法
-    hashValueChain = '9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872'
+    // hashValueChain = '9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872'
     template = JSON.parse(template)
     // math hash
     // embed
@@ -518,9 +518,19 @@ function checkHashValue (claim_sn, templateId, certifyData) {
     // console.log(hashValueLocal)
     // console.log(hashValueLocal)
     if (hashValueLocal === hashValueChain) {
-      return true
+      // return true
+      return {
+        hashValueLocal: hashValueLocal,
+        hashValueChain: hashValueChain,
+        result: true
+      }
     } else {
-      return false
+      // return false
+      return {
+        hashValueLocal: hashValueLocal,
+        hashValueChain: hashValueChain,
+        result: false
+      }
     }
   }).catch(error => {
     console.log('error', error)
