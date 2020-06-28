@@ -1,6 +1,6 @@
 {
   "name": "token-sdk-server",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "现在token-sdk-server还在开发阶段，不建议大家使用。 与链节点云服务协同工作的服务端代码包。 它有一个在前端使用的兄弟版本：`token-sdk-client`。",
   "main": "index.js",
   "scripts": {
@@ -16,6 +16,7 @@
   "dependencies": {
     "axios": "^0.19.2",
     "elliptic": "^6.5.2",
+    "ethereumjs-util": "^7.0.2",
     "gm-crypt": "0.0.2",
     "hash.js": "^1.1.7",
     "hmac-drbg": "^1.0.1",
@@ -23,6 +24,7 @@
     "js-base64": "^2.5.2",
     "md5": "^2.2.1",
     "sha.js": "^2.4.11",
+    "sha3": "^2.1.2",
     "sm-crypto": "^0.1.1"
   }
 }

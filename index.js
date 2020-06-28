@@ -10,10 +10,12 @@ const sm4 = require('./lib/sm4.js');
 const {instance} = require('./lib/instanceAxios')
 const utils = require('./lib/utils')
 const shajs = require('sha.js')
+const {SHA3, Keccak, SHAKE} = require('sha3') // 使用外部引入的
 // const insta
 // import {Base64} from 'js-base64'
 const Base64 = require('js-base64').Base64
 // const md5 = require('md5')
+const { ecsign, isValidSignature, keccak256 } = require('ethereumjs-util')
 
 var hashStr = 'c888c9ce9e098d5864d3ded6ebcc140a12142263bace3a23a36f9905f12bd64a' // 与go代码里一样的字符串
 var priStr = '55c974f17a0b44178d982dcd478150b8a4c0f206f397d7880d06bf5a72932b81'
@@ -504,16 +506,28 @@ function checkHashValue (claim_sn, templateId, certifyData) {
     template = JSON.parse(template)
     // math hash
     // embed
-    let hash = new sm3()
+    // let hash = new sm3()
+    let hash = new Keccak(256)
     let descAndHash = template.desc
     for (let [key, value] of Object.entries(certifyData)) {
       let reg = new RegExp(`\\$${key}\\$`, 'ig')
-      let hashStr = hash.sum(String(value))
-      hashStr = utils.arrToHexStr(hashStr)
+      // let hashStr = hash.sum(String(value))
+      // hashStr = utils.arrToHexStr(hashStr)
+      // hashStr = '0x' + hashStr
+      // descAndHash = descAndHash.replace(reg, hashStr)
+      hash.update(value)
+      let hashStr = hash.digest('hex')
+      hashStr = '0x' + hashStr
+      // console.log(key, hashStr)
       descAndHash = descAndHash.replace(reg, hashStr)
+      hash.reset()
     }
-    let hashValueLocal = hash.sum(descAndHash)
-    hashValueLocal = utils.arrToHexStr(hashValueLocal)
+    // let hashValueLocal = hash.sum(descAndHash)
+    // hashValueLocal = utils.arrToHexStr(hashValueLocal)
+    // console.log('descAndHash', descAndHash)
+    hash.update(descAndHash)
+    let hashValueLocal = hash.digest('hex')
+    hashValueLocal = '0x' + hashValueLocal
     // 9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872
     // console.log(hashValueLocal)
     // console.log(hashValueLocal)
@@ -537,6 +551,51 @@ function checkHashValue (claim_sn, templateId, certifyData) {
   })
 }
 
+/**
+ * 使用ethereumjs-util里的ecsign对数据执行签名
+ * @param  {[type]} msg     [description]
+ * @param  {[type]} privStr [description]
+ * @return {[type]}         [description]
+ */
+function signEcdsa(msg, privStr) {
+  let priv = null
+  if (typeof privStr === 'string' && privStr.slice(0, 2) === '0x') {
+    priv = Buffer.from(privStr.slice(2), 'hex')
+  } else {
+    throw new Error('私钥字符串必须是以0x开头的十六进制字符串')
+  }
+  // let msgHash = keccak256(Buffer.from(msg, 'ascii'))
+  let msgHash = keccak256(Buffer.from(msg, 'utf8'))
+  console.log('msgHash', msgHash, msgHash.toString('hex'))
+  let sign = ecsign(msgHash, priv)
+  let data = new Buffer(65)
+  append(data, sign.r, 0)
+  append(data, sign.s, 32)
+  data[64] = sign.v
+  return '0x' + data.toString('hex')
+}
+function append(buf, data, idx) {
+  for (let i = 0; i < data.length; i++) {
+    buf[idx + i] = data[i]
+  }
+  return buf
+}
+
+/**
+ * 使用ethereumjs-util里的isValidSignature对数据执行验签
+ * @param  {[type]} v [description]
+ * @param  {[type]} r [description]
+ * @param  {[type]} s [description]
+ * @return {[type]}   [description]
+ */
+function verifySignEcdsa(signEcdsaRes) {
+  if (signEcdsaRes.slice(0, 2) === '0x') {
+    signEcdsaRes = signEcdsaRes.slice(2)
+  }
+  let [r, s, v] = [signEcdsaRes.slice(0, 64), signEcdsaRes.slice(64, -2), signEcdsaRes.slice(-2)]
+  return isValidSignature(v ,r, s)
+}
+
 module.exports = {
   main,
   test0,
@@ -548,6 +607,14 @@ module.exports = {
   sm2,
   sm3,
   sm4,
+  SHA3,
+  Keccak,
+  SHAKE,
+  ecsign, // ethereumjs-util 里的方法，用于ecdsa方式的加解密过程
+  isValidSignature, // ethereumjs-util 里的方法，用于ecdsa方式的加解密过程
+  keccak256, // ethereumjs-util 里的方法，用于ecdsa方式的加解密过程
+  signEcdsa,
+  verifySignEcdsa,
   // sm4Li,
   getKeyStore,
   encryptDidttm,
