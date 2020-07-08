@@ -4,7 +4,7 @@ const sm = require('./lib/index.js')
 // const axios = require('axios')
 // const sm4 = require('sm-crypto').sm4;
 // const sm4 = require('gm-crypt').sm4;
-const sm4 = require('./lib/sm4.js');
+const sm4 = require('./lib/sm4.js'); // 专为与go协同工作编写的sm4.它在加密、解密时都会分成2部分处理。
 // import instance from './lib/instanceAxios'
 // import utils from './lib/utils'
 const {instance} = require('./lib/instanceAxios')
@@ -206,12 +206,32 @@ function decryptDidttm (didttm, key) {
  * @return {[type]} [description]
  */
 function getPvData (did) {
-  let url = '/did/pvdata' // + did
+  // keccak256
+  // let url = '/did/pvdata' // + did
+  // return instance({
+  //   url: url,
+  //   method: 'get',
+  //   params: {
+  //     did: did
+  //   }
+  // })
+
+
+  let hash = new Keccak(256)
+  hash.update(did)
+  let hashStr = '0x' + hash.digest('hex')
+  hash.reset()
+  console.log('did hash before', did)
+  console.log('did hash after', hashStr)
   return instance({
-    url: url,
-    method: 'get',
-    params: {
-      did: did
+    url: '',
+    method: 'post',
+    data: {
+      "jsonrpc":"2.0",
+      "method":"dp_getDepository",
+      // "params":["0xf1aa1f4416c5189d150eebf3a0bf1d514f2c35412a3523eb9e3af41375b96b74"],
+      "params":[hashStr],
+      "id":1
     }
   })
 }
@@ -318,6 +338,12 @@ function cancelIdCertify () {}
  * 根据证书id请求链上的证书指纹数据
  * @param  {[type]} claim_sn [description]
  * @return {[type]}          [description]
+ */
+/**
+ * 根据证书id请求链上的证书指纹数据
+ * @param  {[type]}  claim_sn    [description]
+ * @param  {Boolean} hasSignList 是否需要签名列表
+ * @return {[type]}              [description]
  */
 function getCertifyFingerPrint (claim_sn, hasSignList = false) {
   // return instance({
@@ -469,6 +495,24 @@ function setTemporaryCertifyData (claim_sn, templateId, certifyData, expire, pur
   })
 }
 /**
+ * 请求证书的临时数据
+ * @param  {[type]} temporaryId [description]
+ * @return {[type]}             [description]
+ */
+function getTemporaryCertifyData (temporaryId) {
+  return instance({
+    url: '',
+    method: 'post',
+    data: {
+      "jsonrpc":"2.0",
+      "method":"cer_getTemporary",
+      "params":[temporaryId],
+      "id":1
+    }
+
+  })
+}
+/**
  * 申请证书
  * @param  {[type]} templateId [description]
  * @param  {[type]} hashCont   [description]
@@ -531,21 +575,26 @@ function checkHashValue (claim_sn, templateId, certifyData) {
     // 9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872
     // console.log(hashValueLocal)
     // console.log(hashValueLocal)
-    if (hashValueLocal === hashValueChain) {
-      // return true
-      return {
+    // if (hashValueLocal === hashValueChain) {
+    //   // return true
+    //   return {
+    //     hashValueLocal: hashValueLocal,
+    //     hashValueChain: hashValueChain,
+    //     result: true
+    //   }
+    // } else {
+    //   // return false
+    //   return {
+    //     hashValueLocal: hashValueLocal,
+    //     hashValueChain: hashValueChain,
+    //     result: false
+    //   }
+    // }
+    return {
         hashValueLocal: hashValueLocal,
         hashValueChain: hashValueChain,
-        result: true
+        result: hashValueLocal === hashValueChain
       }
-    } else {
-      // return false
-      return {
-        hashValueLocal: hashValueLocal,
-        hashValueChain: hashValueChain,
-        result: false
-      }
-    }
   }).catch(error => {
     console.log('error', error)
   })
@@ -566,7 +615,6 @@ function signEcdsa(msg, privStr) {
   }
   // let msgHash = keccak256(Buffer.from(msg, 'ascii'))
   let msgHash = keccak256(Buffer.from(msg, 'utf8'))
-  console.log('msgHash', msgHash, msgHash.toString('hex'))
   let sign = ecsign(msgHash, priv)
   let data = new Buffer(65)
   append(data, sign.r, 0)
@@ -626,6 +674,7 @@ module.exports = {
 
   bytesToStrHex,
   setTemporaryCertifyData,
+  getTemporaryCertifyData,
   createIdCertify,
   getTemplate,
   getTemplateList,
@@ -644,3 +693,7 @@ module.exports = {
   checkHashValue,
   utils
 }
+
+// export default {
+//   key: 'value'
+// }

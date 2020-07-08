@@ -1,5 +1,7 @@
 # token-sdk-server
 
+因为该包是在server端运行的。所以应该去掉browserEnter.js
+
 ## 简介
 
 现在tokenSDKServer还在开发阶段，现在还不建议大家使用。
@@ -124,8 +126,20 @@ let digest = hash.sum('str') // 得到'str'的散列值 // 参数必须是string
 
 ### sm4
 
-sm4是引用gm-crypt的sm4。
-参考链接：https://www.npmjs.com/package/gm-crypt
+现在代码里运行的sm4。与标准的sm4是不同。区别是：1. 有一个随机的iv。2. key是被md5散列后的。
+它们的相同点是：都是基于标准的sm4开发的。
+若没有与token-sdk-server相同的sm4.没必要只使用token-sdk-server里的sm4。
+它的出现完全是为了配合区块链方面改造后的sm4.不适合用于别的地方主
+用别
+
+```
+const tokenSDKServer = require('token-sdk-server')
+
+let mt = '2345tytre', key = 'wertyhgfd'
+let ct = tokenSDKServer.sm4.encrypt(mt, key)
+console.log('ct', ct)
+let mtDecrypt = tokenSDKServer.sm4.decrypt(ct, key)
+```
 
 new sm4(options)
 实例化sm4
@@ -260,3 +274,50 @@ getTemporaryCertifyData (temporaryID)
 得到证书的临时数据
 params temporaryID
 return promise
+
+
+## 业务级的api
+
+这部分api是基于以上api封装出来的。
+
+```
+对字符串，生成加密didttm文件的内容。
+tokenSDKServer.encryptDidttm(nickname, did, priStr, key)
+params nickname  昵称       string
+       did       did        string
+       priStr    私钥字符串  string
+       key       密码       string
+return ct        密文       string
+
+tokenSDKServer.decryptDidttm(didttmStr, ipdwd, issm = false)
+params didttmStr  didttm文件的内容 string / object(必须包括nickname/did/data)
+       idpwd      密码            string
+return mt         明文            object {nickname,did,data}
+
+// demo
+let key = 'wertasdfg12345'
+let nickname = 'nickname'
+let did = 'did.ttml.ssdfs'
+let priStr = '0x2123456ytrewqwfghhgfdsrtytrew'
+let obj = {
+  nickname: nickname,
+  did: did,
+  priStr: priStr
+}
+
+let ct = tokenSDKServer.encryptDidttm(nickname, did, priStr, key)
+console.log('ct', ct)
+// ct {
+//   nickname: 'nickname',
+//   did: 'did.ttml.ssdfs',
+//   data: '0x629a5515e9cbd09ac3d826e0275e37f8b973b1a677aad5fac9f3cab5d5c27654bed24410af715f4899a93065abe575741cecce51794f3d20bb88ce309562ac4b'
+// }
+let r = tokenSDKServer.decryptDidttm(JSON.stringify(ct), key)
+console.log('r', r)
+// r {
+//   nickname: 'nickname',
+//   did: 'did.ttml.ssdfs',
+//   data: '0x2123456ytrewqwfghhgfdsrtytrew'
+// }
+```
+
