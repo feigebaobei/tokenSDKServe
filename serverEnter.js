@@ -1,8 +1,10 @@
 // 未开发完
 // const utils = require('./lib/utils')
 const tokenSDKServer = require('./index.js')
+const byteCode = require('bytecode')
 // const md5 = require('md5')
 // const fs = require('fs')
+// const Base64 = require('js-base64').Base64
 
 // 服务端的功能包括：
 // 1. 申请证书。
@@ -118,8 +120,41 @@ tokenSDKServer:
 
 // console.log(tokenSDKServer)
 
-let getPvData = function (didttm, idpwd) {
-  return 
+// let getPvData = function (didttm, idpwd) {
+//   return tokenSDKServer.getPvData(did)
+// }
+
+// 私有方法 start
+// str => hexStr
+let decode = (str) => {
+  return '0x' + tokenSDKServer.utils.arrToHexStr(byteCode.decode(str))
+}
+// hexStr => str
+let encode = (hexStr) => {
+  hexStr = hexStr.indexOf('0x') === 0 ? hexStr.slice(2) : hexStr
+  let arr = []
+  for (var i = 0, iLen = hexStr.length; i < iLen; i+=2) {
+    arr.push(parseInt(hexStr.slice(i, i+2), 16))
+  }
+  return byteCode.encode(arr)
+}
+// 私有方法 end
+
+
+
+// 解密ditttm.data
+let decryptDidttmData = (ct, idpwd, {hashKey = true}) => {
+  ct = tokenSDKServer.utils.hexStrToArr(ct)
+  let mt = tokenSDKServer.sm4.decrypt(ct, idpwd, {hashKey: hashKey})
+  return mt
+  // return encode(mt)
+}
+// 加密ditttm.data
+let encryptDidttmData = (mt, idpwd, {hashKey = true}) => {
+  // mt = decode(mt)
+  let ct = tokenSDKServer.sm4.encrypt(mt, idpwd, {hashKey: hashKey})
+  // return decode(tokenSDKServer.utils.arrToHexStr(ct))
+  return '0x' + tokenSDKServer.utils.arrToHexStr(ct)
 }
 
 /**
@@ -141,18 +176,13 @@ let decryptDidttm = function (didttmStr, idpwd, issm = false) {
   } else {
     didttm = JSON.parse(didttmStr)
   }
-  let ct = ''
-  if (!didttm.data.indexOf('0x')) {
-    ct = didttm.data.slice(2)
-  } else {
-    ct = didttm.data
-  }
+  let ct = didttm.data
   let priStr = ''
   if (issm) {
-    // tokenSDKServer.sm4.decrypt
-    priStr = 'didttm不是用sm4加密的。'
+    console.log('didttm不是用sm4加密的。')
+    priStr = ''
   } else {
-    priStr = tokenSDKServer.sm4.decrypt(tokenSDKServer.utils.hexStrToArr(ct), idpwd)
+    priStr = decryptDidttmData(ct, idpwd, {}) // 可以正确运行
   }
   return {
     nickname: didttm.nickname,
@@ -164,23 +194,75 @@ let decryptDidttm = function (didttmStr, idpwd, issm = false) {
 /**
  * 加密didttm文件
  * @param  {[type]} mt  [description]
- * @param  {[type]} key [description]
+ * @param  {[type]} idpwd [description]
  * @return {[type]}     [description]
  */
-let encryptDidttm = function (nickname, did, priStr, key) {
+let encryptDidttm = function (nickname, did, priStr, idpwd) {
   return {
     nickname: nickname,
     did: did,
-    data: '0x' + tokenSDKServer.utils.arrToHexStr(tokenSDKServer.sm4.encrypt(priStr, key))
+    data: encryptDidttmData(priStr, idpwd, {})
   }
 }
-let priStrFromDidttm = function (didttmStr, idpwd, issm = false) {
+
+// 从didttm内容中取出priStr
+let didttmToPriStr = function (didttmStr, idpwd, issm = false) {
   let mt = decryptDidttm(didttmStr, idpwd, issm)
+  // console.log('q4qw3ert', mt)
   return JSON.parse(mt.data).prikey
 }
-// let decryptPvData = function (ctPvData, priStr) {
-//   return {}
-// }
+
+// 加密pvdata
+let encryptPvData = function (pvDataStr, priStr) {
+  if (typeof pvDataStr !== 'string') {
+    pvDataStr = JSON.stringify(pvDataStr)
+  }
+  pvDataStr = decode(pvDataStr)
+  priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
+  let ct = tokenSDKServer.sm4.encrypt(pvDataStr, priStr, {hashKey: true})
+  ct = tokenSDKServer.utils.arrToHexStr(ct)
+  return '0x' + ct
+}
+
+// 解密pvData
+let decryptPvData = function (ctPvData, priStr) {
+  priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
+  let ct = tokenSDKServer.utils.hexStrToArr(ctPvData)
+  let mt = tokenSDKServer.sm4.decrypt(ct, priStr, {hashKey: true})
+  return encode(mt)
+}
+
+// 以上代码可以正确运行
+
+
+// 在pvdata.certifies里添加签发过的证书
+let certifiesAddSignItem = function (pvdata, claimData, templateData) {
+  if (typeof pvdata === 'string') {
+    pvdata = JSON.parse(pvdata)
+  }
+  if (!pvdata.certifies) {
+    pvdata.certifies= []
+  }
+  let keys = {}
+  for (let key of Object.keys(templateData.keys)) {
+    keys[key] = claimData[key] || templateData.keys[key].value
+  }
+  pvdata.certifies.push({
+    id: claimData.id,
+    templateId: claimData.templateId,
+    templateTitle: templateData.title,
+    createTime: claimData.createTime || '',
+    type: claimData.type,
+    desc: templateData.desc,
+    keys: keys
+  })
+  return pvdata
+}
+
+
+
+
+
 
 let genKeyPair = function (priStr, issm = false) {
   if (issm) {
@@ -214,11 +296,9 @@ let sign = function ({keys, msg}, issm = false) {
     if (typeof keys !== 'string') {
       return new Error('keys不是字符串型')
     }
-    // console.log(keys, msg)
     let privStr = keys.indexOf('0x') === 0 ? keys.slice(2) : keys
     let privBytes = Buffer.from(privStr, 'hex')
     let msgBytes = tokenSDKServer.keccak256(Buffer.from(msg, 'utf8'))
-    console.log(privBytes, msgBytes)
     return tokenSDKServer.ecsign(msgBytes, privBytes)
   }
 }
@@ -243,9 +323,14 @@ module.exports = Object.assign(
   {},
   tokenSDKServer,
   {
+    // test2,
+    // encryptDidttmData,
     decryptDidttm,
     encryptDidttm,
-    priStrFromDidttm,
+    didttmToPriStr,
+    encryptPvData,
+    decryptPvData,
+    certifiesAddSignItem,
     genKeyPair,
     encrypt,
     decrypt,
@@ -263,4 +348,4 @@ module.exports = Object.assign(
 
 // // export default {
 // //   utils
-// // }
+// }

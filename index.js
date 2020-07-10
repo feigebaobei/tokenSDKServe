@@ -221,8 +221,8 @@ function getPvData (did) {
   hash.update(did)
   let hashStr = '0x' + hash.digest('hex')
   hash.reset()
-  console.log('did hash before', did)
-  console.log('did hash after', hashStr)
+  // console.log('did hash before', did)
+  // console.log('did hash after', hashStr)
   return instance({
     url: '',
     method: 'post',
@@ -235,6 +235,27 @@ function getPvData (did) {
     }
   })
 }
+// function setPvData (did, pvdata, sign, priStr, needEncrypt = false) {
+function backupData (did, key, type = 'pvdata', pvdata, sign) {
+  // let hash = new Keccak(256)
+  // hash.update(did)
+  // let key = '0x' + hash.digest('hex')
+  // hash.reset()
+  // if (needEncrypt) {
+  //   pvdata = '0x' + tokenSDKServer.utils.arrToHexStr(tokenSDKServer.sm4.encrypt(pvdata, priStr))
+  // }
+  return instance({
+    url: '',
+    method: 'post',
+    data: {
+      "jsonrpc":"2.0",
+      "method":"dp_setDepository",
+      "params":[did, key, type, pvdata, sign],
+       "id":1
+    }
+  })
+}
+
 /**
  * 解密pvData
  * @param  {array} ct  [description]
@@ -539,11 +560,13 @@ function applyCertify (templateId, hashCont, endTime, sign) {
  * @param  {[type]} templateId [description]
  * @return {[type]}            [description]
  */
-function checkHashValue (claim_sn, templateId, certifyData) {
+function checkHashValue (claim_sn, templateId, certifyData, {claimData = false, templateData = false}) {
     // let claim_sn = '0xa631b125a985e58be84d37496fa8eeb46574a4d367ba24a73dc29ee30f00ea7d'
     // let templateId = '0xa631b125a985e58be84d37496fa8eeb46574a4d367ba24a73dc29ee30f00ea7d'
     // console.log('23456tre')
   return Promise.all([getCertifyFingerPrint(claim_sn), getTemplate(templateId)]).then(([claimRes, templateRes]) => {
+    // console.log('claimRes.data', claimRes.data)
+    // console.log('templateRes.data', templateRes.data)
     let [hashValueChain, template] = [claimRes.data.result.hash_cont, templateRes.data.result.meta_cont]
     // 这里使用硬编码是为了走通逻辑，前天需要庆雪使用相同的哈希方法
     // hashValueChain = '9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872'
@@ -593,7 +616,9 @@ function checkHashValue (claim_sn, templateId, certifyData) {
     return {
         hashValueLocal: hashValueLocal,
         hashValueChain: hashValueChain,
-        result: hashValueLocal === hashValueChain
+        result: hashValueLocal === hashValueChain,
+        claimData: claimData ? claimRes.data.result : '',
+        templateData: templateData ? templateRes.data.result : ''
       }
   }).catch(error => {
     console.log('error', error)
@@ -668,6 +693,8 @@ module.exports = {
   encryptDidttm,
   decryptDidttm,
   getPvData,
+  // setPvData,
+  backupData,
   decryptPvData,
   getDidList,
   getCheckCode,
