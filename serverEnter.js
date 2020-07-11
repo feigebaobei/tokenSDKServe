@@ -192,10 +192,16 @@ let decryptDidttm = function (didttmStr, idpwd, issm = false) {
 }
 
 /**
- * 加密didttm文件
- * @param  {[type]} mt  [description]
- * @param  {[type]} idpwd [description]
- * @return {[type]}     [description]
+ * 加密didttm。可用于导出didttm.
+ * @param  {string} nickname 昵称
+ * @param  {string} did      did
+ * @param  {string} priStr   私钥字符串
+ * @param  {string} idpwd    身份密码
+ * @return {object}          didttm {
+                                nickname: // 昵称
+                                did // did
+                                data // 私钥字符串
+ *                           }
  */
 let encryptDidttm = function (nickname, did, priStr, idpwd) {
   return {
@@ -205,14 +211,25 @@ let encryptDidttm = function (nickname, did, priStr, idpwd) {
   }
 }
 
-// 从didttm内容中取出priStr
+/**
+ * 从didttm内容中取出priStr
+ * @param  {string / object}  didttmStr didttm的密文内容
+ * @param  {[type]}  idpwd              身份密码
+ * @param  {Boolean} issm               是否使用国密解密
+ * @return {string}                     私钥字符串
+ */
 let didttmToPriStr = function (didttmStr, idpwd, issm = false) {
   let mt = decryptDidttm(didttmStr, idpwd, issm)
   // console.log('q4qw3ert', mt)
   return JSON.parse(mt.data).prikey
 }
 
-// 加密pvdata
+/**
+ * 加密pvdata
+ * @param  {string} pvDataStr pvdata的明文字符串
+ * @param  {string} priStr    密码
+ * @return {hexstr}           密文。十六进制字符串
+ */
 let encryptPvData = function (pvDataStr, priStr) {
   if (typeof pvDataStr !== 'string') {
     pvDataStr = JSON.stringify(pvDataStr)
@@ -224,7 +241,12 @@ let encryptPvData = function (pvDataStr, priStr) {
   return '0x' + ct
 }
 
-// 解密pvData
+/**
+ * 解密pvData
+ * @param  {hexStr} ctPvData pvdata的密文
+ * @param  {string} priStr   密码
+ * @return {string}          pvdata的明文
+ */
 let decryptPvData = function (ctPvData, priStr) {
   priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
   let ct = tokenSDKServer.utils.hexStrToArr(ctPvData)
@@ -232,10 +254,13 @@ let decryptPvData = function (ctPvData, priStr) {
   return encode(mt)
 }
 
-// 以上代码可以正确运行
-
-
-// 在pvdata.certifies里添加签发过的证书
+/**
+ * 在pvdata.certifies里添加签发过的证书
+ * @param  {string / object} pvdata         pvdata的明文
+ * @param  {object}          claimData     证书的数据
+ * @param  {object}          templateData  证书的模板数据
+ * @return {object}                        添加证书项后的pvdata
+ */
 let certifiesAddSignItem = function (pvdata, claimData, templateData) {
   if (typeof pvdata === 'string') {
     pvdata = JSON.parse(pvdata)

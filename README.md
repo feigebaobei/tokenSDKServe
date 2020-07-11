@@ -68,6 +68,133 @@ console.log(digest)
 
 ## api
 
+### 业务级api
+
+#### 解密didttm
+decryptDidttm(didttmStr, idpwd, issm = false)
+参数
+  didttmStr  string / object      didttm文件的内容。它是密文。
+  idpwd      strring              身份密码。它用于解密didttm.
+  issm       bool                 是否使用国密。
+处理
+返回
+  json对象格式的明文 {
+    nickname: // 昵称
+    did // did
+    data // 私钥字符串
+  }
+
+#### 加密didttm
+encryptDidttm(nickname, did, priStr, idpwd)
+加密didttm。可用于导出didttm.
+参数
+  nickname  string   昵称
+  did       string   did
+  priStr    string   私钥字符串
+  idpwd     string   身份密码
+处理
+返回
+  didttm {
+    nickname: // 昵称
+    did // did
+    data // 私钥字符串的密文
+  }
+
+#### 从didttm内容中取出priStr
+didttmToPriStr(didttmStr, idpwd, issm = false)
+参数
+  didttmStr string / object didttm的密文内容
+  idpwd 身份密码
+  issm 是否使用国密解密
+处理
+返回
+  string 私钥字符串
+
+#### 加密pvdata
+encryptPvData(pvDataStr, priStr)
+参数
+  pvDataStr string  pvdata的明文字符串
+  priStr    string  密码
+处理
+返回
+  hexstr           密文。十六进制字符串
+
+
+#### 解密pvdata
+decryptPvData(ctPvData, priStr)
+参数
+  ctPvData string  pvdata的密文
+  priStr   string  密码
+处理
+返回
+  string pvdata的明文
+
+#### 在pvdata.certifies里添加签发过的证书
+certifiesAddSignItem
+参数
+  pvdata       string / object     pvdata的明文
+  claimData    object              证书的数据
+  templateData object              证书的模板数据
+处理
+  按照templateData.keys中的key从claimData中取出该key对应的value，整理为一项certify，再放入pvdata.certifies里。
+  注意保证claimData里数据完成。否则整理出的certify是不完整的。
+返回
+  object              添加证书项后的pvdata
+
+#### 生成密钥对
+genKeyPair(priStr, issm = false)
+参数
+  priStr string 私钥字符串 选填
+  issm bool 是否使用国密。默认为false.
+处理
+返回
+  若不填priStr，则输出随机密钥。否则输出指定密钥。
+  暂时未开通ecdsa生成密钥对的方法
+
+#### 加密
+encrypt(keys, msg, issm = false)
+参数
+  keys sm2生成的密钥对。
+  msg string
+  issm bool 是否使用国密。默认为false.
+返回
+  array
+  暂时未开通ecdsa的加密方法
+
+#### 解密
+decrypt(keys, data, issm = false)
+参数
+  keys sm2生成的密钥对。
+  data string 有无`0x`开头都可以。十六进制字符串。
+       array
+  issm bool 是否使用国密。默认为false.
+返回
+  hexStr 没有`0x`开头的十六进制字符串。
+  暂时未开通ecdsa的解密方法
+
+#### 加签
+sign({keys, msg}, issm = false)
+参数
+  keys sm2生成的密钥对。
+  msg string  这里需要注意：js里的msg是明文（未经过hash的）.go里的C_Sign(hs, priv)方法需要把明文经过keccak256散列。
+  issm bool 是否使用国密。默认为false.
+返回
+  国密返回{r string, s string}
+  ecdsa返回{r buffer, s buffer, v number}
+
+#### 验签
+verify({keys, msg, sign}, issm = false)
+参数
+  issm bool 是否使用国密。默认为false.
+  若issm为true，则必须传入keys/msg/sign
+  keys sm2生成的密钥对。
+  msg string
+  sign {r string, s string}
+  若issm为false，则不传keys、msg,必须传sign
+  sign {r buffer, s buffer, v number}
+返回
+  bool
+
 ### sm2
 
 sm2部分是基于`sm.js`做的。
