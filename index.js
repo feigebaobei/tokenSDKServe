@@ -206,37 +206,23 @@ function decryptDidttm (didttm, key) {
  * @return {[type]} [description]
  */
 function getPvData (did) {
-  // keccak256
-  // let url = '/did/pvdata' // + did
-  // return instance({
-  //   url: url,
-  //   method: 'get',
-  //   params: {
-  //     did: did
-  //   }
-  // })
-
-
   let hash = new Keccak(256)
   hash.update(did)
   let hashStr = '0x' + hash.digest('hex')
   hash.reset()
-  // console.log('did hash before', did)
-  // console.log('did hash after', hashStr)
   return instance({
     url: '',
     method: 'post',
     data: {
       "jsonrpc":"2.0",
       "method":"dp_getDepository",
-      // "params":["0xf1aa1f4416c5189d150eebf3a0bf1d514f2c35412a3523eb9e3af41375b96b74"],
       "params":[hashStr],
       "id":1
     }
   })
 }
 // function setPvData (did, pvdata, sign, priStr, needEncrypt = false) {
-function backupData (did, key, type = 'pvdata', pvdata, sign) {
+function backupData (did, key, type = 'pvdata', pvdataCt, sign) {
   // let hash = new Keccak(256)
   // hash.update(did)
   // let key = '0x' + hash.digest('hex')
@@ -250,7 +236,7 @@ function backupData (did, key, type = 'pvdata', pvdata, sign) {
     data: {
       "jsonrpc":"2.0",
       "method":"dp_setDepository",
-      "params":[did, key, type, pvdata, sign],
+      "params":[did, key, type, pvdataCt, sign],
        "id":1
     }
   })

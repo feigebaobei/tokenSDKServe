@@ -3,8 +3,10 @@
 const tokenSDKServer = require('./index.js')
 const byteCode = require('bytecode')
 // const md5 = require('md5')
-// const fs = require('fs')
+const fs = require('fs')
 // const Base64 = require('js-base64').Base64
+var multer = require('multer')
+const rootPath = 'tokenSDKData'
 
 // 服务端的功能包括：
 // 1. 申请证书。
@@ -243,13 +245,13 @@ let encryptPvData = function (pvDataStr, priStr) {
 
 /**
  * 解密pvData
- * @param  {hexStr} ctPvData pvdata的密文
+ * @param  {hexStr} pvdataCt pvdata的密文
  * @param  {string} priStr   密码
  * @return {string}          pvdata的明文
  */
-let decryptPvData = function (ctPvData, priStr) {
+let decryptPvData = function (pvdataCt, priStr) {
   priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
-  let ct = tokenSDKServer.utils.hexStrToArr(ctPvData)
+  let ct = tokenSDKServer.utils.hexStrToArr(pvdataCt)
   let mt = tokenSDKServer.sm4.decrypt(ct, priStr, {hashKey: true})
   return encode(mt)
 }
@@ -283,11 +285,6 @@ let certifiesAddSignItem = function (pvdata, claimData, templateData) {
   })
   return pvdata
 }
-
-
-
-
-
 
 let genKeyPair = function (priStr, issm = false) {
   if (issm) {
@@ -335,12 +332,161 @@ let verify = function ({keys, msg, sign}, issm = false) {
       return new Error('keys不是SM2KeyPair的实例')
     }
   } else {
+    if (typeof sign === 'string') {
+      sign = sign.indexOf('0x') === 0 ? sign.slice(2) : sign
+      sign = {
+        // r: sign.slice(0, 64),
+        // s: sign.slice(64, -2),
+        // v: sign.slice(-2)
+        r: Buffer.from(sign.slice(0, 64), 'hex'),
+        s: Buffer.from(sign.slice(64, -2), 'hex'),
+        v: Number(sign.slice(-2))
+      }
+    }
+    // console.log('sign', sign)
     if (sign.v && sign.r && sign.s) {
       return tokenSDKServer.isValidSignature(sign.v, sign.r, sign.s)
     } else {
       return new Error('参数sign不完整')
     }
   }
+}
+
+// 执行keccak256散列
+let hashKeccak256 = (msg, format = 'hex') => {
+  let hash = new tokenSDKServer.Keccak(256)
+  let msgs = []
+  if (typeof msg === 'string') {
+    msgs.push(msg)
+  }
+  for (let i = 0, iLen = msgs.length; i < iLen; i++) {
+    hash.update(msgs[i])
+  }
+  let hashStr = hash.digest(format)
+  hash.reset()
+  return hashStr
+}
+
+// 递归删除path下的所有文件
+let emptyDir = (path) => {
+  // let a = fs.accessSync(path)
+  // if (!a) {return true}
+  try {
+    fs.accessSync(path)
+    var files = fs.readdirSync(path)
+    files.forEach((file) => {
+      var state = fs.statSync(`${path}/${file}`)
+      if (state.isDirectory()) {
+        emptyDir(`${path}/${file}`)
+      } else {
+        fs.unlinkSync(`${path}/${file}`)
+      }
+    })
+  } catch (e) {
+    return false
+  }
+}
+// 递归删除path下的所有空目录
+let rmEmptyDir = (path) => {
+  try {
+    fs.accessSync(path)
+    let files = fs.readdirSync(path)
+    if (files.length > 0) {
+      var tempFile = 0
+      files.forEach((file) => {
+        tempFile++
+        rmEmptyDir(`${path}/${file}`)
+      })
+      if (tempFile == files.length) {
+        fs.rmdirSync(path)
+      }
+    } else {
+      fs.rmdirSync(path)
+    }
+  } catch (e) {
+    return false
+  }
+}
+
+/**
+ * 初始化
+ * 先删除tokenSDKData下的所有目录，再创建新的目录结构。没有文件。
+ */
+let init = function () {
+  // 删除旧数据。
+  emptyDir(`${rootPath}`)
+  rmEmptyDir(`${rootPath}`)
+  // 创建新数据。
+  fs.mkdirSync(`${rootPath}`)
+  fs.mkdirSync(`${rootPath}/businessLicense`)
+  fs.writeFileSync(`${rootPath}/privateConfig.js`, '')
+  fs.writeFileSync(`${rootPath}/pvdataCt.txt`, '')
+}
+
+// 设置didttm
+let setDidttm = (didttm, idpwd) => {
+  let didttmStr = ''
+  if (typeof didttm !== 'string') {
+    didttmStr = JSON.stringify(didttm)
+  } else {
+    didttmStr = didttm
+  }
+  let data = `let didttm = ${didttmStr}\nlet idpwd = '${idpwd}'\nmodule.exports = {didttm, idpwd}`
+  fs.writeFileSync(`${rootPath}/privateConfig.js`, data)
+}
+// 取得didttm
+// 因绝对路径的问题，造成取数据出错。
+// let getDidttm = (didttm, idpwd) => {
+//   let privateConfig = require(`${rootPath}/privateConfig.js`)
+//   return privateConfig.didttm
+// }
+
+// 在本地保存pvdataCt
+let localSavePvdata = (pvdataCt, priStr, claim_sn, ocrData, filePath, backup = false) => {
+  let mt = decryptPvData(pvdataCt, priStr)
+  let pvdata = JSON.parse(mt)
+  console.log('pvdata解密后', pvdata)
+  if (!pvdata.pendingTask) {
+    pvdata.pendingTask = []
+  }
+  if (typeof ocrData === 'string') {
+    ocrData = JSON.parse(ocrData)
+  }
+  let obj = {
+    id: claim_sn,
+    ocrData: ocrData,
+    filePath: filePath,
+    isPersonCheck: false,
+    isPdidCheck: false
+  }
+  pvdata.pendingTask.push(obj)
+  console.log('添加数的后', pvdata)
+
+  let ct = encryptPvData(pvdata, priStr)
+  // console.log('ct', ct)
+  fs.writeFileSync(`${rootPath}/pvdataCt.txt`, ct)
+  if (backup) {
+    // 备份到远端
+    console.log('备份到远端')
+  }
+}
+
+// 设置未完成签发的证书。
+// 即：待签发的证书
+let setCertifyUnfinish = function (req) {
+  console.log('req', req)
+  // let certify = {}
+  // pvdata.certifies.unfinish.push(certify)
+}
+let getCertifyUnfinish = function () {
+  // 从pvdata.certifies里取出未签发的证书
+}
+
+let accessSign = (claim_sn) => {
+  return false
+}
+let accessPendding = (claim_sn) => {
+  return false
 }
 
 
@@ -360,7 +506,16 @@ module.exports = Object.assign(
     encrypt,
     decrypt,
     sign,
-    verify
+    verify,
+    hashKeccak256,
+    init,
+    setDidttm,
+    // getDidttm,
+    localSavePvdata,
+    setCertifyUnfinish,
+    getCertifyUnfinish,
+    accessSign,
+    accessPendding
   }
 )
 // module.exports = {
