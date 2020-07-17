@@ -324,8 +324,9 @@ let sign = function ({keys, msg}, issm = false) {
     return tokenSDKServer.ecsign(msgBytes, privBytes)
   }
 }
-let verify = function ({keys, msg, sign}, issm = false) {
-  if (issm) {
+// let verify = function ({keys, msg, sign}, issm = false) {
+let verify = function ({keys, msg, sign}, options = {issm: false, chainId: undefined}) {
+  if (options.issm) {
     if (keys instanceof tokenSDKServer.sm2.SM2KeyPair) {
       return keys.verify512(msg, sign.r, sign.s)
     } else {
@@ -340,11 +341,14 @@ let verify = function ({keys, msg, sign}, issm = false) {
         // v: sign.slice(-2)
         r: Buffer.from(sign.slice(0, 64), 'hex'),
         s: Buffer.from(sign.slice(64, -2), 'hex'),
-        v: Number(sign.slice(-2))
+        // v: Number(sign.slice(-2))
+        // v: 0
+        v: options.chainId ? Number(sign.slice(-2)) : 27 // 只有27、28可以通过验签
       }
     }
-    // console.log('sign', sign)
-    if (sign.v && sign.r && sign.s) {
+    // console.log(sign)
+    // if (sign.v && sign.r && sign.s) {
+    if (sign.r && sign.s) {
       return tokenSDKServer.isValidSignature(sign.v, sign.r, sign.s)
     } else {
       return new Error('参数sign不完整')
@@ -445,7 +449,7 @@ let setDidttm = (didttm, idpwd) => {
 let localSavePvdata = (pvdataCt, priStr, claim_sn, ocrData, filePath, backup = false) => {
   let mt = decryptPvData(pvdataCt, priStr)
   let pvdata = JSON.parse(mt)
-  console.log('pvdata解密后', pvdata)
+  // console.log('pvdata解密后', pvdata)
   if (!pvdata.pendingTask) {
     pvdata.pendingTask = []
   }
@@ -460,7 +464,7 @@ let localSavePvdata = (pvdataCt, priStr, claim_sn, ocrData, filePath, backup = f
     isPdidCheck: false
   }
   pvdata.pendingTask.push(obj)
-  console.log('添加数的后', pvdata)
+  // console.log('添加数的后', pvdata)
 
   let ct = encryptPvData(pvdata, priStr)
   // console.log('ct', ct)
@@ -489,6 +493,80 @@ let accessPendding = (claim_sn) => {
   return false
 }
 
+// 从远端拉取数据
+let pullData = (key, needHask = true) => {
+  if (needHask) {
+    key = hashKeccak256(key)
+  }
+  return tokenSDKServer.instance({
+    url: '',
+    method: 'post',
+    data: {
+      jsonrpc: '2.0',
+      method: 'dp_getDepository',
+      params: [key],
+      id: 1
+    }
+  })
+}
+
+// 备份数据
+// 把数据推到远端
+// 未完成
+let pushData = (did, type, ct, {priStr, phone, parent_did}) => {
+  let key = ''
+  let backupType = ''
+  console.log(key, backupType)
+  switch (type) {
+    case 'didttmPhone':
+      key = hashKeccak256(`${did}with${phone}`)
+      backupType = 'didttm'
+      break
+    case 'didttmParentDid':
+      key = hashKeccak256(`${did}with${parent_did}`)
+      backupType = 'didttm'
+      break
+    case 'pvdata':
+      key = hashKeccak256(`${did}`)
+      backupType = 'pvdata'
+      break
+    case 'bigdata':
+      key = hashKeccak256(`${did}with${ct}`)
+      backupType = 'bigdata'
+      break
+    case 'pic':
+      key = hashKeccak256(`${did}with businessLicense`)
+      backupType = 'bigdata'
+      break
+    case 'parentDidCheck':
+      key = hashKeccak256(`${did}go to check businessLicense`)
+      backupType = 'bigdata'
+      break
+    default:
+      throw new Error(`不支持type=${type}`)
+      break
+  }
+  console.log(key, backupType)
+  let signObj = `update backup file${ct}for${did}with${key}type${type}`
+  let signData = sign({keys: priStr || key, msg: signObj})
+  let signStr = `0x${signData.r.toString('hex')}${signData.s.toString('hex')}00`
+  return tokenSDKServer.backupData(did, key, backupType, ct, signStr)
+}
+
+// 备份临时数据
+// 可以用于稍息保存
+let pushBackupData = function (did, claim_sn, backupData, expire, {needEncrypt = false, prikey = '', needSign = false, signStr = ''}) {
+  if (needEncrypt) {
+    backupData = encryptPvData(backupData, priStr)
+  }
+  if (needSign) {
+    if (!prikey) {throw new Error('prikey不能为空')}
+    let signData = sign({keys: prikey, msg: backupData})
+    signStr = `0x${signData.r.toString('hex')}${signData.s.toString('hex')}${String(signData.v).length >= 2 ? String(signData.v) : '0'+String(signData.v)}`
+  }
+  return tokenSDKServer.setTemporaryCertifyData(did, claim_sn, backupData, expire, signStr)
+}
+
 
 module.exports = Object.assign(
   {},
@@ -515,7 +593,10 @@ module.exports = Object.assign(
     setCertifyUnfinish,
     getCertifyUnfinish,
     accessSign,
-    accessPendding
+    accessPendding,
+    pullData,
+    // pushData,
+    pushBackupData
   }
 )
 // module.exports = {
@@ -529,3 +610,30 @@ module.exports = Object.assign(
 // // export default {
 // //   utils
 // }
+
+
+
+
+// // 使用上传存证副本的接口备份odid身份认证的数据
+// let d = new Date()
+// let {didttm, idpwd} = require('../tokenSDKData/privateConfig.js')//.didttm.did
+// let priStr = JSON.parse(tokenSDKServer.decryptDidttm(didttm, idpwd).data).prikey // 0xcf0fbbdac3353253cec457a81a560d916bfb229a710774747e29f0ff1c1daa59
+// // console.log('priStr', priStr)
+// // d.setFullYear(2120)
+// let claim_sn = '0xdacb1e1063c5f46195f04f79624dd19c6968a2b7b4e844b646b4c540c5d2a3fa',
+//   did = 'did:ttm:a0e01cb27c8e5160a907b1373f083af3d2eb64fd8ee9800998ecf8427eab11',
+//   certifyData = '0x3b9084e5704b949a1d4a1989e5dae6db3af54af07bafdacd69f386eca82e2adf67f8e1b3ad5bab5e90913f6e676b65bab1554d0a2cfdfabfe1b91e043fa254d928',
+//   expire = d.setFullYear(2120), // 4750482080395
+//   signData = tokenSDKServer.sign({keys: priStr, msg: `did=${did},claim_sn=${claim_sn},certifyData=${certifyData},expire=${expire}`})
+// let signStr = `0x${signData.r.toString('hex')}${signData.s.toString('hex')}${String(signData.v).length >= 2 ? String(signData.v) : '0'+String(signData.v)}`
+// // console.log('expire', expire) // true
+// // console.log('签名结果：', signStr) // true
+//   // console.log(s)
+//   isok = tokenSDKServer.verify({sign: signData})
+//   // console.log('自己验签结果：', isok) // true
+// tokenSDKServer.setTemporaryCertifyData(did, claim_sn, certifyData, expire, signStr).then(response => {
+//   // console.log(response.config)
+//   console.log(response.data)
+// }).catch(error => {
+//   console.log(error)
+// // })

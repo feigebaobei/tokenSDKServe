@@ -488,16 +488,16 @@ function bytesToStrHex(arr) {
  * @param {[type]} expire      [description]
  * @param {[type]} purpose     [description]
  */
-function setTemporaryCertifyData (claim_sn, templateId, certifyData, expire, purpose) {
+// function setTemporaryCertifyData (claim_sn, templateId, certifyData, expire, purpose) {
+function setTemporaryCertifyData (did, claim_sn, certifyData, expire, sign) {
   return instance({
-    url: '/claim/temporaryCertifyData',
+    url: '',
     method: 'post',
     data: {
-      claim_sn: claim_sn,
-      templateId: templateId,
-      certifyData: certifyData,
-      expire: expire,
-      purpose: purpose
+      "jsonrpc":"2.0",
+      "method":"cer_setTemporary",
+      "params":[did, claim_sn, certifyData, expire, sign],
+      "id":1
     }
   })
 }
@@ -655,6 +655,13 @@ function verifySignEcdsa(signEcdsaRes) {
   return isValidSignature(v ,r, s)
 }
 
+// 备份临时数据
+// 可以用于 存证副本、稍息通知等。
+// 这个方法与setTemporaryCertifyData功能重复
+// function setTemporary() {
+
+// }
+
 module.exports = {
   main,
   test0,
@@ -704,7 +711,8 @@ module.exports = {
   // genKey,
   applyCertify,
   checkHashValue,
-  utils
+  utils,
+  instance
 }
 
 // export default {
