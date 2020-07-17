@@ -555,6 +555,7 @@ let pushData = (did, type, ct, {priStr, phone, parent_did}) => {
 
 // 备份临时数据
 // 可以用于稍息保存
+// 未完成
 let pushBackupData = function (did, claim_sn, backupData, expire, {needEncrypt = false, prikey = '', needSign = false, signStr = ''}) {
   if (needEncrypt) {
     backupData = encryptPvData(backupData, priStr)
