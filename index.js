@@ -320,16 +320,41 @@ function getTemplate (templateId) {
 }
 /**
  * 得到证书模板列表
- * 暂时不需要参数
  * @return {[type]} [description]
  */
-function getTemplateList () {
+function getTemplateList (type) {
   return instance({
-    url: 'claim/templateList',
-    method: 'get',
-    params: {
+    url: '',
+    method: 'post',
+    data: {
+      "jsonrpc":"2.0",
+      "method":"ma_getMetalist",
+      "params":[type],
+      "id":1
     }
   })
+}
+/**
+ * 设置模板
+ * @param {string} did      udid
+ * @param {string} title    模板的名称
+ * @param {string} type     模板的类型
+ * @param {string} metaCont 模板内容
+ * @param {string} sign     sender.sign("did=%s,title=%s,type=%s,metaCont=%s", $did, $title, $type, $metaCont)
+ */
+function setTemplate (did, title, type, metaCont, sign) {
+  return instance({
+    url: '',
+    method: 'post',
+    data: {
+      "jsonrpc":"2.0",
+      "method":"ma_setMetaContent",
+      "params":[did, title, type, metaCont, sign],
+       "id":1
+    }
+  })
+  // 模版ID生成规则
+  // $templateId=hash($did+$title+$type+$metaCont)
 }
 /**
  * 验证身份证书
@@ -546,68 +571,39 @@ function applyCertify (templateId, hashCont, endTime, sign) {
  * @param  {[type]} templateId [description]
  * @return {[type]}            [description]
  */
-function checkHashValue (claim_sn, templateId, certifyData, {claimData = false, templateData = false}) {
-    // let claim_sn = '0xa631b125a985e58be84d37496fa8eeb46574a4d367ba24a73dc29ee30f00ea7d'
-    // let templateId = '0xa631b125a985e58be84d37496fa8eeb46574a4d367ba24a73dc29ee30f00ea7d'
-    // console.log('23456tre')
+function checkHashValue (claim_sn, templateId, certifyData, options = {claimData: false, templateData: false}) {
+// function checkHashValue (claim_sn, templateId, options = {claimData: false, templateData: false}) {
   return Promise.all([getCertifyFingerPrint(claim_sn), getTemplate(templateId)]).then(([claimRes, templateRes]) => {
-    // console.log('claimRes.data', claimRes.data)
-    // console.log('templateRes.data', templateRes.data)
+    // console.log('claimRes', claimRes.data)
+    // console.log('templateRes', templateRes.data)
+    // let [hashValueChain, certifyData, template] = [claimRes.data.result.hash_cont, templateRes.data.result.meta_cont]
     let [hashValueChain, template] = [claimRes.data.result.hash_cont, templateRes.data.result.meta_cont]
     // 这里使用硬编码是为了走通逻辑，前天需要庆雪使用相同的哈希方法
     // hashValueChain = '9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872'
     template = JSON.parse(template)
-    // math hash
-    // embed
-    // let hash = new sm3()
     let hash = new Keccak(256)
     let descAndHash = template.desc
     for (let [key, value] of Object.entries(certifyData)) {
       let reg = new RegExp(`\\$${key}\\$`, 'ig')
-      // let hashStr = hash.sum(String(value))
-      // hashStr = utils.arrToHexStr(hashStr)
-      // hashStr = '0x' + hashStr
-      // descAndHash = descAndHash.replace(reg, hashStr)
       hash.update(value)
       let hashStr = hash.digest('hex')
       hashStr = '0x' + hashStr
-      // console.log(key, hashStr)
       descAndHash = descAndHash.replace(reg, hashStr)
       hash.reset()
     }
-    // let hashValueLocal = hash.sum(descAndHash)
-    // hashValueLocal = utils.arrToHexStr(hashValueLocal)
-    // console.log('descAndHash', descAndHash)
     hash.update(descAndHash)
     let hashValueLocal = hash.digest('hex')
     hashValueLocal = '0x' + hashValueLocal
-    // 9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872
-    // console.log(hashValueLocal)
-    // console.log(hashValueLocal)
-    // if (hashValueLocal === hashValueChain) {
-    //   // return true
-    //   return {
-    //     hashValueLocal: hashValueLocal,
-    //     hashValueChain: hashValueChain,
-    //     result: true
-    //   }
-    // } else {
-    //   // return false
-    //   return {
-    //     hashValueLocal: hashValueLocal,
-    //     hashValueChain: hashValueChain,
-    //     result: false
-    //   }
-    // }
     return {
         hashValueLocal: hashValueLocal,
         hashValueChain: hashValueChain,
         result: hashValueLocal === hashValueChain,
-        claimData: claimData ? claimRes.data.result : '',
-        templateData: templateData ? templateRes.data.result : ''
+        claimData: options.claimData ? claimRes.data.result : '',
+        templateData: options.templateData ? templateRes.data.result : ''
       }
   }).catch(error => {
     console.log('error', error)
+    return Promise.reject(error)
   })
 }
 
@@ -698,6 +694,7 @@ module.exports = {
   createIdCertify,
   getTemplate,
   getTemplateList,
+  setTemplate,
   validateIdCertify,
   cancelIdCertify,
   getCertifyFingerPrint,
