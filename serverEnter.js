@@ -6,6 +6,8 @@ const byteCode = require('bytecode')
 const fs = require('fs')
 // const Base64 = require('js-base64').Base64
 var multer = require('multer')
+const path = require('path')
+
 const rootPath = 'tokenSDKData'
 
 // 服务端的功能包括：
@@ -412,18 +414,67 @@ let rmEmptyDir = (path) => {
   }
 }
 
+let init = ({open = null, message = null, error = null, close = null, reConnectGap = null}) => {
+  // 检查参数
+  if (open !== null) {
+    if (typeof(open) !== 'function') {
+      throw new Error('open not is function')
+    }
+  }
+  if (open !== null) {
+    if (typeof(message) !== 'function') {
+      throw new Error('message not is function')
+    }
+  }
+  if (open !== null) {
+    if (typeof(error) !== 'function') {
+      throw new Error('error not is function')
+    }
+  }
+  if (open !== null) {
+    if (typeof(close) !== 'function') {
+      throw new Error('close not is function')
+    }
+  }
+  if (reConnectGap) {
+    if (typeof(reConnectGap) === 'number') {
+      throw new Error('reConnectGap not is number')
+    }
+  }
+  tokenSDKServer.wsc({open, message, error, close, reConnectGap})
+}
+
 /**
- * 初始化
+ * 配置sdk需要的环境。
  * 先删除tokenSDKData下的所有目录，再创建新的目录结构。没有文件。
+ * path是配置文件的路径
  */
-let init = function () {
+// let config = function (didttm = '', idpwd = '', cb) {
+let config = function (configPath) {
+  if (!configPath) {
+    throw new Error('config file path is error')
+  }
+  configPath = path.relative(__dirname, configPath)
+  // console.log(configPath)
+  let {didttm, idpwd} = require(configPath)
+  // console.log(didttm, idpwd)
   // 删除旧数据。
   emptyDir(`${rootPath}`)
   rmEmptyDir(`${rootPath}`)
   // 创建新数据。
   fs.mkdirSync(`${rootPath}`)
-  fs.mkdirSync(`${rootPath}/businessLicense`)
-  fs.writeFileSync(`${rootPath}/privateConfig.js`, '')
+  // fs.mkdirSync(`${rootPath}/businessLicense`) // 不需要保存营业执照的图片了。
+  let pcStr = ''
+  if (didttm && idpwd) {
+    let dtStr = '{'
+    for (let key of Object.keys(didttm)) {
+      dtStr += `"${key}":"${didttm[key]}",`
+    }
+    dtStr = dtStr.slice(0, -1)
+    dtStr += '}'
+    pcStr = `let didttm = ${dtStr}\nlet idpwd = '${idpwd}'\nmodule.exports = {didttm, idpwd}`
+  }
+  fs.writeFileSync(`${rootPath}/privateConfig.js`, pcStr)
   fs.writeFileSync(`${rootPath}/pvdataCt.txt`, '')
 }
 
@@ -587,7 +638,7 @@ module.exports = Object.assign(
     sign,
     verify,
     hashKeccak256,
-    init,
+    config,
     setDidttm,
     // getDidttm,
     localSavePvdata,
