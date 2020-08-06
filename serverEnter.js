@@ -414,7 +414,7 @@ let rmEmptyDir = (path) => {
   }
 }
 
-let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null}) => {
+let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isDev = false}) => {
   // 检查参数
   if (openfn !== null) {
     if (typeof(openfn) !== 'function') {
@@ -441,7 +441,7 @@ let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, re
       throw new Error('reConnectGap not is number')
     }
   }
-  tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap})
+  tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
 }
 
 /**
