@@ -9,7 +9,7 @@ const sm4 = require('./lib/sm4.js'); // 专为与go协同工作编写的sm4.它�
 // import utils from './lib/utils'
 const {instance} = require('./lib/instanceAxios')
 const utils = require('./lib/utils')
-const wsc = require('./lib/websocket.js')
+const {wsc} = require('./lib/websocket.js')
 const shajs = require('sha.js')
 const {SHA3, Keccak, SHAKE} = require('sha3') // 使用外部引入的
 // const insta

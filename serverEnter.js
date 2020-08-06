@@ -414,26 +414,26 @@ let rmEmptyDir = (path) => {
   }
 }
 
-let init = ({open = null, message = null, error = null, close = null, reConnectGap = null}) => {
+let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null}) => {
   // 检查参数
-  if (open !== null) {
-    if (typeof(open) !== 'function') {
-      throw new Error('open not is function')
+  if (openfn !== null) {
+    if (typeof(openfn) !== 'function') {
+      throw new Error('openfn not is function')
     }
   }
-  if (open !== null) {
-    if (typeof(message) !== 'function') {
-      throw new Error('message not is function')
+  if (messagefn !== null) {
+    if (typeof(messagefn) !== 'function') {
+      throw new Error('messagefn not is function')
     }
   }
-  if (open !== null) {
-    if (typeof(error) !== 'function') {
-      throw new Error('error not is function')
+  if (errorfn !== null) {
+    if (typeof(errorfn) !== 'function') {
+      throw new Error('errorfn not is function')
     }
   }
-  if (open !== null) {
-    if (typeof(close) !== 'function') {
-      throw new Error('close not is function')
+  if (closefn !== null) {
+    if (typeof(closefn) !== 'function') {
+      throw new Error('closefn not is function')
     }
   }
   if (reConnectGap) {
@@ -441,7 +441,7 @@ let init = ({open = null, message = null, error = null, close = null, reConnectG
       throw new Error('reConnectGap not is number')
     }
   }
-  tokenSDKServer.wsc({open, message, error, close, reConnectGap})
+  tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap})
 }
 
 /**
@@ -638,6 +638,7 @@ module.exports = Object.assign(
     sign,
     verify,
     hashKeccak256,
+    init,
     config,
     setDidttm,
     // getDidttm,
