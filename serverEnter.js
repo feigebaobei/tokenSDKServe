@@ -9,6 +9,7 @@ var multer = require('multer')
 const path = require('path')
 
 const rootPath = 'tokenSDKData'
+let {didttm} = require('../../tokenSDKData/privateConfig.js')
 
 // 服务端的功能包括：
 // 1. 申请证书。
@@ -414,6 +415,16 @@ let rmEmptyDir = (path) => {
   }
 }
 
+/**
+ * 初始化sdk
+ * @param  {function}  options.openfn       [当open时触发的方法]
+ * @param  {function}  options.messagefn    [当message时触发的方法]
+ * @param  {function}  options.errorfn      [当error时触发的方法]
+ * @param  {function}  options.closefn      [当close时触发的方法]
+ * @param  {number}    options.reConnectGap [从链接的时间间隔]
+ * @param  {Boolean}   options.isDev        [description]
+ * @return {[type]}                       [description]
+ */
 let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isDev = false}) => {
   // 检查参数
   if (openfn !== null) {
@@ -444,12 +455,13 @@ let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, re
   tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
 }
 
+// let config = function (didttm = '', idpwd = '', cb) {
 /**
  * 配置sdk需要的环境。
  * 先删除tokenSDKData下的所有目录，再创建新的目录结构。没有文件。
  * path是配置文件的路径
+ * @param  {[type]} configPath [description]
  */
-// let config = function (didttm = '', idpwd = '', cb) {
 let config = function (configPath) {
   if (!configPath) {
     throw new Error('config file path is error')
@@ -619,6 +631,20 @@ let pushBackupData = function (did, claim_sn, backupData, expire, {needEncrypt =
   return tokenSDKServer.setTemporaryCertifyData(did, claim_sn, backupData, expire, signStr)
 }
 
+let genBindQrStr = (infoList, title = '') => {
+  if (!(infoList instanceof Array)) {
+    throw new Error('infoList not is Array')
+  }
+  return JSON.stringify({
+    method: 'bind',
+    content: {
+      msgContentType: 'bindReq',
+      keys: infoList,
+      title: title
+    },
+    sender: didttm.did
+  })
+}
 
 module.exports = Object.assign(
   {},
@@ -649,7 +675,8 @@ module.exports = Object.assign(
     accessPendding,
     pullData,
     // pushData,
-    pushBackupData
+    pushBackupData,
+    genBindQrStr
   }
 )
 // module.exports = {
