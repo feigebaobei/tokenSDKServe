@@ -422,10 +422,10 @@ let rmEmptyDir = (path) => {
  * @param  {function}  options.errorfn      [当error时触发的方法]
  * @param  {function}  options.closefn      [当close时触发的方法]
  * @param  {number}    options.reConnectGap [从链接的时间间隔]
- * @param  {Boolean}   options.isDev        [description]
+ * @param  {Boolean}   options.isProd        [description]
  * @return {[type]}                       [description]
  */
-let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isDev = false}) => {
+let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isProd = false}) => {
   // 检查参数
   if (openfn !== null) {
     if (typeof(openfn) !== 'function') {
@@ -452,7 +452,8 @@ let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, re
       throw new Error('reConnectGap not is number')
     }
   }
-  tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
+  tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isProd})
+  // console.log()
 }
 
 // let config = function (didttm = '', idpwd = '', cb) {
@@ -631,16 +632,32 @@ let pushBackupData = function (did, claim_sn, backupData, expire, {needEncrypt =
   return tokenSDKServer.setTemporaryCertifyData(did, claim_sn, backupData, expire, signStr)
 }
 
-let genBindQrStr = (infoList, title = '') => {
-  if (!(infoList instanceof Array)) {
-    throw new Error('infoList not is Array')
+/**
+ * 生成用于渲染绑定did的qr
+ * @param  {[array]} reqUserInfoKeys [需要用户提供的数据]
+ * @param  {String} reqUserLevel    [description]
+ * @param  {String} sessionId    [description]
+ * @param  {String} title    [description]
+ * @return {[string]}          [指定格式的字符串]
+ */
+let genBindQrStr = (reqUserInfoKeys, reqUserLevel, sessionId, title = '') => {
+  if (!(reqUserInfoKeys instanceof Array)) {
+    throw new Error('reqUserInfoKeys not is Array')
+  }
+  if (['N', 'R', 'M'].indexOf(reqUserLevel) < 0) {
+    throw new Error('reqUserLevel 只能是N | R | M')
+  }
+  if (!sessionId) {
+    throw new Error('sessionId is invalid')
   }
   return JSON.stringify({
     method: 'bind',
     content: {
-      msgContentType: 'bindReq',
-      keys: infoList,
-      title: title
+      type: 'bindRequest',
+      title: title,
+      sessionId: sessionId,
+      reqUserLevel: reqUserLevel,
+      reqUserInfoKeys: reqUserInfoKeys,
     },
     sender: didttm.did
   })
