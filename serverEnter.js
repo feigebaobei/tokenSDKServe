@@ -327,7 +327,6 @@ let sign = function ({keys, msg}, issm = false) {
     return tokenSDKServer.ecsign(msgBytes, privBytes)
   }
 }
-// let verify = function ({keys, msg, sign}, issm = false) {
 let verify = function ({keys, msg, sign}, options = {issm: false, chainId: undefined}) {
   if (options.issm) {
     if (keys instanceof tokenSDKServer.sm2.SM2KeyPair) {
@@ -339,18 +338,11 @@ let verify = function ({keys, msg, sign}, options = {issm: false, chainId: undef
     if (typeof sign === 'string') {
       sign = sign.indexOf('0x') === 0 ? sign.slice(2) : sign
       sign = {
-        // r: sign.slice(0, 64),
-        // s: sign.slice(64, -2),
-        // v: sign.slice(-2)
         r: Buffer.from(sign.slice(0, 64), 'hex'),
         s: Buffer.from(sign.slice(64, -2), 'hex'),
-        // v: Number(sign.slice(-2))
-        // v: 0
         v: options.chainId ? Number(sign.slice(-2)) : 27 // 只有27、28可以通过验签
       }
     }
-    // console.log(sign)
-    // if (sign.v && sign.r && sign.s) {
     if (sign.r && sign.s) {
       return tokenSDKServer.isValidSignature(sign.v, sign.r, sign.s)
     } else {
@@ -452,11 +444,10 @@ let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, re
       throw new Error('reConnectGap not is number')
     }
   }
-  tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isProd})
-  // console.log()
+  return tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isProd})
+  // return tokenSDKServer.wsc({reConnectGap, isProd})
 }
 
-// let config = function (didttm = '', idpwd = '', cb) {
 /**
  * 配置sdk需要的环境。
  * 先删除tokenSDKData下的所有目录，再创建新的目录结构。没有文件。
