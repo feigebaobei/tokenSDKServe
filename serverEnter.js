@@ -351,6 +351,11 @@ let verify = function ({keys, msg, sign}, options = {issm: false, chainId: undef
   }
 }
 
+// 老板需要这个方法
+let verifySignature = (sign) => {
+  return this.verify({sign: sign})
+}
+
 // 执行keccak256散列
 let hashKeccak256 = (msg, format = 'hex') => {
   let hash = new tokenSDKServer.Keccak(256)
@@ -414,10 +419,10 @@ let rmEmptyDir = (path) => {
  * @param  {function}  options.errorfn      [当error时触发的方法]
  * @param  {function}  options.closefn      [当close时触发的方法]
  * @param  {number}    options.reConnectGap [从链接的时间间隔]
- * @param  {Boolean}   options.isProd        [description]
+ * @param  {Boolean}   options.isDev        [description]
  * @return {[type]}                       [description]
  */
-let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isProd = false}) => {
+let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isDev = false}) => {
   // 检查参数
   if (openfn !== null) {
     if (typeof(openfn) !== 'function') {
@@ -444,8 +449,8 @@ let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, re
       throw new Error('reConnectGap not is number')
     }
   }
-  return tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isProd})
-  // return tokenSDKServer.wsc({reConnectGap, isProd})
+  return tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
+  // return tokenSDKServer.wsc({reConnectGap, isDev})
 }
 
 /**
@@ -671,6 +676,7 @@ module.exports = Object.assign(
     decrypt,
     sign,
     verify,
+    verifySignature,
     hashKeccak256,
     init,
     config,
