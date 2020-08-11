@@ -422,35 +422,49 @@ let rmEmptyDir = (path) => {
  * @param  {Boolean}   options.isDev        [description]
  * @return {[type]}                       [description]
  */
-let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isDev = false}) => {
-  // 检查参数
-  if (openfn !== null) {
-    if (typeof(openfn) !== 'function') {
-      throw new Error('openfn not is function')
+// let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isDev = false}) => {
+//   // 检查参数
+//   if (openfn !== null) {
+//     if (typeof(openfn) !== 'function') {
+//       throw new Error('openfn not is function')
+//     }
+//   }
+//   if (messagefn !== null) {
+//     if (typeof(messagefn) !== 'function') {
+//       throw new Error('messagefn not is function')
+//     }
+//   }
+//   if (errorfn !== null) {
+//     if (typeof(errorfn) !== 'function') {
+//       throw new Error('errorfn not is function')
+//     }
+//   }
+//   if (closefn !== null) {
+//     if (typeof(closefn) !== 'function') {
+//       throw new Error('closefn not is function')
+//     }
+//   }
+//   if (reConnectGap) {
+//     if (typeof(reConnectGap) === 'number') {
+//       throw new Error('reConnectGap not is number')
+//     }
+//   }
+//   return tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
+// }
+let init = ({authfn = null, bindfn = null}) => {
+  let mfn = (msgObj) => {
+    switch (msgObj.method) {
+      case 'bind':
+        bindfn(msgObj)
+        break
+      case 'auth':
+        authfn(msgObj)
+        break
+      default:
+        break
     }
   }
-  if (messagefn !== null) {
-    if (typeof(messagefn) !== 'function') {
-      throw new Error('messagefn not is function')
-    }
-  }
-  if (errorfn !== null) {
-    if (typeof(errorfn) !== 'function') {
-      throw new Error('errorfn not is function')
-    }
-  }
-  if (closefn !== null) {
-    if (typeof(closefn) !== 'function') {
-      throw new Error('closefn not is function')
-    }
-  }
-  if (reConnectGap) {
-    if (typeof(reConnectGap) === 'number') {
-      throw new Error('reConnectGap not is number')
-    }
-  }
-  return tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
-  // return tokenSDKServer.wsc({reConnectGap, isDev})
+  return tokenSDKServer.wsc({messagefn: mfn})
 }
 
 /**
@@ -636,7 +650,8 @@ let pushBackupData = function (did, claim_sn, backupData, expire, {needEncrypt =
  * @param  {String} title    [description]
  * @return {[string]}          [指定格式的字符串]
  */
-let genBindQrStr = (reqUserInfoKeys, reqUserLevel, sessionId, title = '') => {
+// let genBindQrStr = (reqUserInfoKeys, reqUserLevel, sessionId, title = '') => {
+let genBindQrStr = (reqUserInfoKeys, reqUserLevel, sessionId, title = '', expire = new Date().getTime() + 60 * 1000) => {
   if (!(reqUserInfoKeys instanceof Array)) {
     throw new Error('reqUserInfoKeys not is Array')
   }
@@ -655,6 +670,7 @@ let genBindQrStr = (reqUserInfoKeys, reqUserLevel, sessionId, title = '') => {
       reqUserLevel: reqUserLevel,
       reqUserInfoKeys: reqUserInfoKeys,
     },
+    expire: String(expire),
     sender: didttm.did
   })
 }
