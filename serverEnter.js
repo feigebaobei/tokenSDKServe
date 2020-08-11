@@ -451,7 +451,7 @@ let rmEmptyDir = (path) => {
 //   }
 //   return tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
 // }
-let init = ({authfn = null, bindfn = null}) => {
+let init = ({authfn = null, bindfn = null, isDev = false}) => {
   let mfn = (msgObj) => {
     switch (msgObj.method) {
       case 'bind':
@@ -464,7 +464,7 @@ let init = ({authfn = null, bindfn = null}) => {
         break
     }
   }
-  return tokenSDKServer.wsc({messagefn: mfn})
+  return tokenSDKServer.wsc({messagefn: mfn, isDev})
 }
 
 /**
