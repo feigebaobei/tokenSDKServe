@@ -1,7 +1,7 @@
 // 未开发完
 // const utils = require('./lib/utils')
 const tokenSDKServer = require('./index.js')
-const byteCode = require('bytecode')
+const byteCode = require('bytecode') // 移到了lib/utils.js里，后期把行删除
 // const md5 = require('md5')
 const fs = require('fs')
 // const Base64 = require('js-base64').Base64
@@ -130,10 +130,12 @@ tokenSDKServer:
 // }
 
 // 私有方法 start
+// 移到了lib/utils.js里，后期把行删除
 // str => hexStr
 let decode = (str) => {
   return '0x' + tokenSDKServer.utils.arrToHexStr(byteCode.decode(str))
 }
+// 移到了lib/utils.js里，后期把行删除
 // hexStr => str
 let encode = (hexStr) => {
   hexStr = hexStr.indexOf('0x') === 0 ? hexStr.slice(2) : hexStr
@@ -148,12 +150,12 @@ let encode = (hexStr) => {
 
 
 // 解密ditttm.data
-let decryptDidttmData = (ct, idpwd, {hashKey = true}) => {
-  ct = tokenSDKServer.utils.hexStrToArr(ct)
-  let mt = tokenSDKServer.sm4.decrypt(ct, idpwd, {hashKey: hashKey})
-  return mt
-  // return encode(mt)
-}
+// let decryptDidttmData = (ct, idpwd, {hashKey = true}) => {
+//   ct = tokenSDKServer.utils.hexStrToArr(ct)
+//   let mt = tokenSDKServer.sm4.decrypt(ct, idpwd, {hashKey: hashKey})
+//   return mt
+//   // return encode(mt)
+// }
 // 加密ditttm.data
 let encryptDidttmData = (mt, idpwd, {hashKey = true}) => {
   // mt = decode(mt)
@@ -174,27 +176,27 @@ let encryptDidttmData = (mt, idpwd, {hashKey = true}) => {
  *                               data // 私钥字符串
  *                             }
  */
-let decryptDidttm = function (didttmStr, idpwd, issm = false) {
-  let didttm = {}
-  if (typeof(didttmStr) !== 'string') {
-    didttm = didttmStr
-  } else {
-    didttm = JSON.parse(didttmStr)
-  }
-  let ct = didttm.data
-  let priStr = ''
-  if (issm) {
-    console.log('didttm不是用sm4加密的。')
-    priStr = ''
-  } else {
-    priStr = decryptDidttmData(ct, idpwd, {}) // 可以正确运行
-  }
-  return {
-    nickname: didttm.nickname,
-    did: didttm.did,
-    data: priStr
-  }
-}
+// let decryptDidttm = function (didttmStr, idpwd, issm = false) {
+//   let didttm = {}
+//   if (typeof(didttmStr) !== 'string') {
+//     didttm = didttmStr
+//   } else {
+//     didttm = JSON.parse(didttmStr)
+//   }
+//   let ct = didttm.data
+//   let priStr = ''
+//   if (issm) {
+//     console.log('didttm不是用sm4加密的。')
+//     priStr = ''
+//   } else {
+//     priStr = decryptDidttmData(ct, idpwd, {}) // 可以正确运行
+//   }
+//   return {
+//     nickname: didttm.nickname,
+//     did: didttm.did,
+//     data: priStr
+//   }
+// }
 
 /**
  * 加密didttm。可用于导出didttm.
@@ -223,11 +225,11 @@ let encryptDidttm = function (nickname, did, priStr, idpwd) {
  * @param  {Boolean} issm               是否使用国密解密
  * @return {string}                     私钥字符串
  */
-let didttmToPriStr = function (didttmStr, idpwd, issm = false) {
-  let mt = decryptDidttm(didttmStr, idpwd, issm)
-  // console.log('q4qw3ert', mt)
-  return JSON.parse(mt.data).prikey
-}
+// let didttmToPriStr = function (didttmStr, idpwd, issm = false) {
+//   let mt = decryptDidttm(didttmStr, idpwd, issm)
+//   // console.log('q4qw3ert', mt)
+//   return JSON.parse(mt.data).prikey
+// }
 
 /**
  * 加密pvdata
@@ -257,6 +259,15 @@ let decryptPvData = function (pvdataCt, priStr) {
   let ct = tokenSDKServer.utils.hexStrToArr(pvdataCt)
   let mt = tokenSDKServer.sm4.decrypt(ct, priStr, {hashKey: true})
   return encode(mt)
+}
+
+let decryptPic = function (picCt, priStr) {
+  priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
+  let ct = tokenSDKServer.utils.hexStrToArr(picCt)
+  let mt = tokenSDKServer.sm4.decrypt(ct, priStr, {hashKey: true})
+  // console.log('mt', mt)
+  return mt
+  // return encode(mt)
 }
 
 /**
@@ -451,20 +462,84 @@ let rmEmptyDir = (path) => {
 //   }
 //   return tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
 // }
-let init = ({authfn = null, bindfn = null, isDev = false}) => {
+let init = (synergy = true, {
+  authfn = null,
+  bindfn = null,
+  confirmfn = null,
+  verificationfn = null,
+  pendingfn = null,
+  errorfn = null,
+  pendTimeoutfn = null,
+  receiptfn = null,
+  isDev = false,
+  autoReceipt = true,
+}) => {
+  if (synergy) {
+    // 拉取远端的pvdataCt
+    tokenSDKServer.getPvData({origin: 'chain'}).then(response => {
+      // console.log('response', response)
+      // console.log(response.data.result.data)
+      if (response.data.error) {
+        return P
+      } else {
+        fs.writeFileSync('./tokenSDKData/pvdataCt.txt', response.data.result.data)
+      }
+    }).catch(error => {
+      console.log('error', error)
+    })
+  }
+  // 绑定消息触发的回调方法
   let mfn = (msgObj) => {
     switch (msgObj.method) {
       case 'bind':
-        bindfn(msgObj)
+        if (bindfn) {
+          bindfn(msgObj)
+        }
         break
       case 'auth':
-        authfn(msgObj)
+        if (authfn) {
+          authfn(msgObj)
+        }
+        break
+      case 'confirm':
+        if (confirmfn) {
+          confirmfn(msgObj)
+        }
+        break
+      case 'verification':
+        if (verificationfn) {
+          verificationfn(msgObj)
+        }
+        break
+      case 'pending':
+        if (pendingfn) {
+          pendingfn(msgObj)
+        }
+        break
+      case 'error':
+        if (errorfn) {
+          errorfn(msgObj)
+        }
+        break
+      case 'pendTimeout':
+        if (pendTimeoutfn) {
+          pendTimeoutfn(msgObj)
+        }
+        break
+      case 'receipt':
+        if (receiptfn) {
+          receiptfn(msgObj)
+        }
         break
       default:
         break
     }
   }
-  return tokenSDKServer.wsc({messagefn: mfn, isDev})
+  return tokenSDKServer.wsc({
+    messagefn: mfn,
+    isDev,
+    autoReceipt
+  })
 }
 
 /**
@@ -681,11 +756,12 @@ module.exports = Object.assign(
   {
     // test2,
     // encryptDidttmData,
-    decryptDidttm,
+    // decryptDidttm,
     encryptDidttm,
-    didttmToPriStr,
+    // didttmToPriStr,
     encryptPvData,
     decryptPvData,
+    decryptPic,
     certifiesAddSignItem,
     genKeyPair,
     encrypt,
