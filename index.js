@@ -11,7 +11,7 @@ const fs = require('fs')
 const path = require('path')
 const {instance} = require('./lib/instanceAxios')
 const utils = require('./lib/utils')
-const {wsc} = require('./lib/websocket.js')
+const {wsc, createMessage, send} = require('./lib/websocket.js')
 const shajs = require('sha.js')
 const {SHA3, Keccak, SHAKE} = require('sha3') // 使用外部引入的
 // const insta
@@ -313,7 +313,7 @@ function getPvData(options) {
   return res
 }
 // function setPvData (did, pvdata, sign, priStr, needEncrypt = false) {
-function backupData (did, key, type = 'pvdata', pvdataCt, sign) {
+function pushBackupData (did, key, type = 'pvdata', pvdataCt, sign) {
   // let hash = new Keccak(256)
   // hash.update(did)
   // let key = '0x' + hash.digest('hex')
@@ -321,6 +321,8 @@ function backupData (did, key, type = 'pvdata', pvdataCt, sign) {
   // if (needEncrypt) {
   //   pvdata = '0x' + tokenSDKServer.utils.arrToHexStr(tokenSDKServer.sm4.encrypt(pvdata, priStr))
   // }
+
+  console.log('pushBackupData', did, key, type, pvdataCt, sign)
   return instance({
     url: '',
     method: 'post',
@@ -328,7 +330,7 @@ function backupData (did, key, type = 'pvdata', pvdataCt, sign) {
       "jsonrpc":"2.0",
       "method":"dp_setDepository",
       "params":[did, key, type, pvdataCt, sign],
-       "id":1
+      "id":1
     }
   })
 }
@@ -800,6 +802,8 @@ module.exports = {
   // test2,
   // fn,
   wsc,
+  createMessage,
+  send,
   getPubByDid,
   shajs,
   sm2,
@@ -819,7 +823,7 @@ module.exports = {
   decryptDidttm,
   getPvData,
   // setPvData,
-  backupData,
+  pushBackupData,
   decryptPvData,
   getDidList,
   getCheckCode,

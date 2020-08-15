@@ -9,7 +9,8 @@ var multer = require('multer')
 const path = require('path')
 
 const rootPath = 'tokenSDKData'
-let {didttm} = require('../../tokenSDKData/privateConfig.js')
+const {didttm, idpwd} = require('../../tokenSDKData/privateConfig.js')
+const priStr = JSON.parse(tokenSDKServer.decryptDidttm(didttm, idpwd).data).prikey
 
 // 服务端的功能包括：
 // 1. 申请证书。
@@ -705,17 +706,17 @@ let pushData = (did, type, ct, {priStr, phone, parent_did}) => {
 // 备份临时数据
 // 可以用于稍息保存
 // 未完成
-let pushBackupData = function (did, claim_sn, backupData, expire, {needEncrypt = false, prikey = '', needSign = false, signStr = ''}) {
-  if (needEncrypt) {
-    backupData = encryptPvData(backupData, priStr)
-  }
-  if (needSign) {
-    if (!prikey) {throw new Error('prikey不能为空')}
-    let signData = sign({keys: prikey, msg: backupData})
-    signStr = `0x${signData.r.toString('hex')}${signData.s.toString('hex')}${String(signData.v).length >= 2 ? String(signData.v) : '0'+String(signData.v)}`
-  }
-  return tokenSDKServer.setTemporaryCertifyData(did, claim_sn, backupData, expire, signStr)
-}
+// let pushBackupData = function (did, claim_sn, backupData, expire, {needEncrypt = false, prikey = '', needSign = false, signStr = ''}) {
+//   if (needEncrypt) {
+//     backupData = encryptPvData(backupData, priStr)
+//   }
+//   if (needSign) {
+//     if (!prikey) {throw new Error('prikey不能为空')}
+//     let signData = sign({keys: prikey, msg: backupData})
+//     signStr = `0x${signData.r.toString('hex')}${signData.s.toString('hex')}${String(signData.v).length >= 2 ? String(signData.v) : '0'+String(signData.v)}`
+//   }
+//   return tokenSDKServer.setTemporaryCertifyData(did, claim_sn, backupData, expire, signStr)
+// }
 
 /**
  * 生成用于渲染绑定did的qr
@@ -750,6 +751,100 @@ let genBindQrStr = (reqUserInfoKeys, reqUserLevel, sessionId, title = '', expire
   })
 }
 
+// 获取配置文件的内容
+let getPrivateConfig = () => {
+  return {
+    didttm: didttm,
+    idpwd: idpwd
+  }
+}
+
+// 在pvdata.pendingTask里添加待办项
+let addPendingTask = (item, claim_sn, type) => {
+  // let config = Object.assign({}, {
+  //   origin: 'local',
+  //   // backup: false
+  // }, options)
+  // function getCertifyFingerPrint (claim_sn, hasSignList = false) {
+  // item = {
+  //   id:
+  //   // templateId:
+  //   // templateTitle:
+  //   createTime:
+  //   // type:
+  //   // desc:
+  //   members:
+  //   keys:
+  // }
+  // item: {
+  //   msgObj: {},
+  //   isPersonCheck:
+  //   isPdidCheck:
+  // }
+  // if (!item.id || !item.createTime || !item.members || !item.keys) {
+  //   throw new Error('参数错误')
+  // }
+  // 完善item的数据
+  // 获取template
+  // return tokenSDKServer.getCertifyFingerPrint(claim_sn).then(response => {
+  //   if (response.data.result) {
+  //     return response.data.result.template_id
+  //   } else {
+  //     return Promise.reject({isError: true, payload: new Error('获取证书指纹失败')})
+  //   }
+  // })
+  // .then(templateId => {
+  //   // item.templateId = templateId
+  //   return tokenSDKServer.getTemplate(templateId).then(response => {
+  //     let result = response.data.result
+  //     if (result) {
+  //       // 不确定这些属性会在什么地方用到
+  //       // item.templateTitle = result.title
+  //       // item.type = result.type
+  //       // item.desc = JSON.parse(result.meta_cont).desc
+  //       return true
+  //     } else {
+  //       return Promise.reject({isError: true, payload: new Error('获取证书模板失败')})
+  //     }
+  //   })
+  // })
+  // // 添加item，并保存pvdata.
+  // .then(bool => {
+  //   // console.log(bool, item)
+  //   let pvdataStr = tokenSDKServer.getPvData()
+  //   // console.log('pvdataStr', pvdataStr)
+  //   pvdata = pvdataStr.toString()
+  //   pvdata = JSON.parse(pvdata)
+  //   pvdata.pendingTask[item.id] = item
+  //   // console.log(pvdata)
+  //   let pvdataCt = encryptPvData(pvdata, priStr)
+  //   fs.writeFileSync('./tokenSDKData/pvdataCt.txt', pvdataCt)
+  //   return Promise.reject({isError: false})
+  // })
+  // .catch(({isError, payload}) => {
+  //   if (isError) {
+  //     return {error: payload, result: null}
+  //   } else {
+  //     return Promise.resolve({error: null, result: true})
+  //   }
+  // })
+  item = {
+    msgObj: item,
+    idPersonCheck: false,
+    isPdidCheck: false,
+    type: type
+  }
+  let pvdataStr = tokenSDKServer.getPvData()
+  pvdata = pvDataStr.toString()
+  pvdata = JSON.parse(pvdata)
+  pvdata.pendingTask[claim_sn] = item
+  let pvdataCt = encryptPvData(pvdata, priStr)
+  fs.writeFileSync('./tokenSDKData/pvdataCt.txt', pvdataCt)
+}
+
+// 获取私钥字符串
+let getPriStr = () => priStr
+
 module.exports = Object.assign(
   {},
   tokenSDKServer,
@@ -781,45 +876,10 @@ module.exports = Object.assign(
     accessPendding,
     pullData,
     // pushData,
-    pushBackupData,
-    genBindQrStr
+    // pushBackupData,
+    genBindQrStr,
+    getPrivateConfig,
+    addPendingTask,
+    getPriStr
   }
 )
-// module.exports = {
-//   // test0
-//   // test0: 'str'
-//   decryptDidttm,
-//   encryptDidttm,
-//   utils:tokenSDKServer.utils
-// }
-
-// // export default {
-// //   utils
-// }
-
-
-
-
-// // 使用上传存证副本的接口备份odid身份认证的数据
-// let d = new Date()
-// let {didttm, idpwd} = require('../tokenSDKData/privateConfig.js')//.didttm.did
-// let priStr = JSON.parse(tokenSDKServer.decryptDidttm(didttm, idpwd).data).prikey // 0xcf0fbbdac3353253cec457a81a560d916bfb229a710774747e29f0ff1c1daa59
-// // console.log('priStr', priStr)
-// // d.setFullYear(2120)
-// let claim_sn = '0xdacb1e1063c5f46195f04f79624dd19c6968a2b7b4e844b646b4c540c5d2a3fa',
-//   did = 'did:ttm:a0e01cb27c8e5160a907b1373f083af3d2eb64fd8ee9800998ecf8427eab11',
-//   certifyData = '0x3b9084e5704b949a1d4a1989e5dae6db3af54af07bafdacd69f386eca82e2adf67f8e1b3ad5bab5e90913f6e676b65bab1554d0a2cfdfabfe1b91e043fa254d928',
-//   expire = d.setFullYear(2120), // 4750482080395
-//   signData = tokenSDKServer.sign({keys: priStr, msg: `did=${did},claim_sn=${claim_sn},certifyData=${certifyData},expire=${expire}`})
-// let signStr = `0x${signData.r.toString('hex')}${signData.s.toString('hex')}${String(signData.v).length >= 2 ? String(signData.v) : '0'+String(signData.v)}`
-// // console.log('expire', expire) // true
-// // console.log('签名结果：', signStr) // true
-//   // console.log(s)
-//   isok = tokenSDKServer.verify({sign: signData})
-//   // console.log('自己验签结果：', isok) // true
-// tokenSDKServer.setTemporaryCertifyData(did, claim_sn, certifyData, expire, signStr).then(response => {
-//   // console.log(response.config)
-//   console.log(response.data)
-// }).catch(error => {
-//   console.log(error)
-// // })
