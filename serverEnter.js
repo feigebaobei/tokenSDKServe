@@ -9,7 +9,9 @@ var multer = require('multer')
 const path = require('path')
 
 const rootPath = 'tokenSDKData'
+const configParam = require('./lib/config.js')
 const {didttm, idpwd} = require('../../tokenSDKData/privateConfig.js')
+// console.log('serverEnter', didttm, idpwd)
 const priStr = JSON.parse(tokenSDKServer.decryptDidttm(didttm, idpwd).data).prikey
 
 // 服务端的功能包括：
@@ -101,7 +103,7 @@ tokenSDKServer:
   checkCommonCertify: [Function: checkCommonCertify],
   cancelCheckCommonCertify: [Function: cancelCheckCommonCertify],
   cancelCertify: [Function: cancelCertify],
-  signCertify: [Function: signCertify],
+  submitSignCertify: [Function: submitSignCertify],
   applyCertify: [Function: applyCertify],
   checkHashValue: [Function: checkHashValue],
   utils: {
@@ -238,16 +240,16 @@ let encryptDidttm = function (nickname, did, priStr, idpwd) {
  * @param  {string} priStr    密码
  * @return {hexstr}           密文。十六进制字符串
  */
-let encryptPvData = function (pvDataStr, priStr) {
-  if (typeof pvDataStr !== 'string') {
-    pvDataStr = JSON.stringify(pvDataStr)
-  }
-  pvDataStr = decode(pvDataStr)
-  priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
-  let ct = tokenSDKServer.sm4.encrypt(pvDataStr, priStr, {hashKey: true})
-  ct = tokenSDKServer.utils.arrToHexStr(ct)
-  return '0x' + ct
-}
+// let encryptPvData = function (pvDataStr, priStr) {
+//   if (typeof pvDataStr !== 'string') {
+//     pvDataStr = JSON.stringify(pvDataStr)
+//   }
+//   pvDataStr = decode(pvDataStr)
+//   priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
+//   let ct = tokenSDKServer.sm4.encrypt(pvDataStr, priStr, {hashKey: true})
+//   ct = tokenSDKServer.utils.arrToHexStr(ct)
+//   return '0x' + ct
+// }
 
 /**
  * 解密pvData
@@ -616,7 +618,7 @@ let localSavePvdata = (pvdataCt, priStr, claim_sn, ocrData, filePath, backup = f
   pvdata.pendingTask.push(obj)
   // console.log('添加数的后', pvdata)
 
-  let ct = encryptPvData(pvdata, priStr)
+  let ct = tokenSDKServer.encryptPvData(pvdata, priStr)
   // console.log('ct', ct)
   fs.writeFileSync(`${rootPath}/pvdataCt.txt`, ct)
   if (backup) {
@@ -761,6 +763,7 @@ let getPrivateConfig = () => {
 
 // 在pvdata.pendingTask里添加待办项
 let addPendingTask = (item, claim_sn, type) => {
+  // console.log('addPendingTask 12345ytrew')
   // let config = Object.assign({}, {
   //   origin: 'local',
   //   // backup: false
@@ -834,16 +837,189 @@ let addPendingTask = (item, claim_sn, type) => {
     isPdidCheck: false,
     type: type
   }
+  // console.log('item', item)
   let pvdataStr = tokenSDKServer.getPvData()
-  pvdata = pvDataStr.toString()
+  pvdata = pvdataStr.toString()
   pvdata = JSON.parse(pvdata)
   pvdata.pendingTask[claim_sn] = item
-  let pvdataCt = encryptPvData(pvdata, priStr)
+  let pvdataCt = tokenSDKServer.encryptPvData(pvdata, priStr)
   fs.writeFileSync('./tokenSDKData/pvdataCt.txt', pvdataCt)
 }
 
 // 获取私钥字符串
 let getPriStr = () => priStr
+
+/**
+ * 指定的证书的签名列表中是否存在指定did的签名，且在有效时间范围内。
+ * @param  {[string]} claim_sn [证书id]
+ * @param  {[string]} did      [did]
+ * @return {[promise]}
+ *             {error          error / null
+ *               result        null / boolean
+ *             }
+ */
+let hasValidSign = (claim_sn, did) => {
+  return tokenSDKServer.getCertifyFingerPrint(claim_sn, true).then(response => {
+    if (response.data.result) {
+      let signList = response.data.result.sign_list
+      let valid = signList.some(item => item.did === did && Date.now() < Number(item.expire))
+      if (valid) {
+        return Promise.reject({isError: false, payload: true})
+      } else {
+        return Promise.reject({isError: false, payload: false})
+      }
+    } else {
+      return Promise.reject({isError: true, payload: new Error(configParam.errorMap.getCertifyFingerPrint.message)})
+    }
+  })
+  .catch(({isError, payload}) => {
+    if (isError) {
+      return Promise.reject({error: payload, result: null})
+    } else {
+      return Promise.resolve({error: null, result: payload})
+    }
+  })
+}
+
+/**
+ * 给证书签名。
+ * 该方法在签名前不验证证书的hashValue
+ * @param  {[string]} claim_sn [description]
+ * @param  {[string]} explain  [description]
+ * @param  {[string]} expire   [description]
+ * @return {[promise]}          {error, result}
+ */
+let signCertify = (claim_sn, explain = '', expire = Date.now() + 30 * 24 * 60 * 60 * 1000) => {
+  let template = {}, hashValue = null
+  // 获得证书hash值
+  // 得到证书模板id
+  return tokenSDKServer.getCertifyFingerPrint(claim_sn).then(response => {
+    if (!response.data.result) {
+      return Promise.reject({isError: true, payload: new Error(response.data.error.message ? response.data.error.message : configParam.errorMap.getCertifyFingerPrint.message)})
+    } else {
+      hashValue = response.data.result.hash_cont
+      return response.data.result.template_id
+    }
+  })
+  .then(templateId => {
+    // console.log('signCertify', templateId)
+    return tokenSDKServer.getTemplate(templateId).then(response => {
+      if (!response.data.result) {
+        return Promise.reject({isError: true, payload: new Error(configParam.errorMap.getTemplate.message)})
+      } else {
+        template = response.data.result
+        template.meta_cont = JSON.parse(template.meta_cont)
+        return true
+      }
+    })
+  })
+  // 签名并提交
+  .then(bool => {
+    // console.log('bool', bool)
+    let signObj = `claim_sn=${claim_sn},templateId=${template.template_id},hashCont=${hashValue},did=${didttm.did},name=${didttm.nickname},explain=${explain},expire=${expire}`
+    let signData = sign({keys: priStr, msg: signObj})
+    let signStr = `0x${signData.r.toString('hex')}${signData.s.toString('hex')}${String(signData.v).length >= 2 ? String(signData.v) : '0'+String(signData.v)}`
+    // console
+    return tokenSDKServer.submitSignCertify(didttm.did, claim_sn, didttm.nickname, template.template_id, hashValue, explain, expire, signStr).then(response => {
+      // console.log('signCertify', response)
+      if (response.data.result) {
+        return Promise.reject({isError: false, payload: true})
+      } else {
+        return Promise.reject({isError: true, payload: new Error(configParam.errorMap.sign.message)})
+      }
+    })
+  })
+  // .catch(error => {
+  //   console.log('error w234rt', error)
+  // })
+  .catch(({isError, payload}) => {
+    // console.log('isError', isError)
+    // console.log('payload', payload)
+    if (isError) {
+      return Promise.reject({error: payload, result: null})
+    } else {
+      return Promise.resolve({error: null, result: payload})
+    }
+  })
+}
+
+// 把pendingTask里数据放在certifies里。
+// 一般用于完成pendingTask后
+/**
+ * 把pendingTask里数据放在certifies里。
+ * 一般用于完成pendingTask后
+ * @param  {[string]}  claim_sn [claim_sn]
+ * @return {[promise]}          [{error, result}]
+ */
+let movePendinTaskToCertifies = (claim_sn) => {
+  let pvdataStr = tokenSDKServer.getPvData()
+  let pvdata = JSON.parse(pvdataStr)
+  let pendingTask = pvdata.pendingTask ? pvdata.pendingTask : {}
+  let item = pendingTask[claim_sn]
+  // let confirmed = pvdata.certifies.confirmed ? pvdata.certifies.confirmed : []
+  if (item) {
+    // pvdataStr
+    let obj = {}
+    let template = {}
+    // 获得template的数据
+    return tokenSDKServer.getCertifyFingerPrint(claim_sn).then(response => {
+      if (!response.data.result) {
+        return Promise.reject({isError: true, payload: new Error(response.data.error.message ? response.data.error.message : configParam.errorMap.getCertifyFingerPrint.message)})
+      } else {
+        return response.data.result.template_id
+      }
+    })
+    .then(templateId => {
+      return tokenSDKServer.getTemplate(templateId).then(response => {
+        if (!response.data.result) {
+          return Promise.reject({isError: true, payload: new Error(configParam.errorMap.getTemplate.message)})
+        } else {
+          template = response.data.result
+          template.meta_cont = JSON.parse(template.meta_cont)
+          return true
+        }
+      })
+    })
+    // 在certifies里添加数据项
+    .then(bool => {
+      let pvdataStr = tokenSDKServer.getPvData()
+      let pvdata = JSON.parse(pvdataStr)
+      let confirmed = pvdata.certifies.confirmed ? pvdata.certifies.confirmed : []
+      let pendingTask = pvdata.pendingTask ? pvdata.pendingTask : {}
+      switch (item.type) {
+        case 'businessLicenseConfirm':
+          obj = {
+            id: item.msgObj.content.businessLicenseData.claim_sn,
+            templateId: template.template_id,
+            templatetitle: template.title,
+            createTime: item.msgObj.content.businessLicenseData.createTime,
+            type: template.type,
+            desc: template.meta_cont.desc,
+            members: item.msgObj.content.businessLicenseData.members,
+            keys: item.msgObj.content.businessLicenseData.ocrData,
+          }
+          break
+        default:
+          break
+      }
+      confirmed.push(obj)
+      delete pendingTask[claim_sn]
+      pvdata.certifies.confirmed = confirmed
+      pvdata.pendingTask = pendingTask
+      tokenSDKServer.setPvData(pvdata, {needEncrypt: true})
+      return Promise.reject({isError: false, payload: true})
+    })
+    .catch(({isError, payload}) => {
+      if (isError) {
+        return Promise.reject({error: payload, result: null})
+      } else {
+        return Promise.resolve({error: null, result: payload})
+      }
+    })
+  } else {
+    return Promise.reject({error: new Error(configParam.errorMap.noPendingTaskItem.message), result: null})
+  }
+}
 
 module.exports = Object.assign(
   {},
@@ -854,7 +1030,7 @@ module.exports = Object.assign(
     // decryptDidttm,
     encryptDidttm,
     // didttmToPriStr,
-    encryptPvData,
+    // encryptPvData,
     decryptPvData,
     decryptPic,
     certifiesAddSignItem,
@@ -880,6 +1056,9 @@ module.exports = Object.assign(
     genBindQrStr,
     getPrivateConfig,
     addPendingTask,
-    getPriStr
+    getPriStr,
+    hasValidSign,
+    signCertify,
+    movePendinTaskToCertifies
   }
 )

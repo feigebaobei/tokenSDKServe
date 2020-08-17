@@ -12,6 +12,7 @@ const path = require('path')
 const {instance} = require('./lib/instanceAxios')
 const utils = require('./lib/utils')
 const {wsc, createMessage, send} = require('./lib/websocket.js')
+const configParam = require('./lib/config.js')
 const shajs = require('sha.js')
 const {SHA3, Keccak, SHAKE} = require('sha3') // 使用外部引入的
 // const insta
@@ -312,7 +313,32 @@ function getPvData(options) {
   }
   return res
 }
+
+/**
+ * 保存在本地的pvdataCt.txt里。
+ * 不同步到远端
+ * @param {[type]} pvdataCt [description]
+ * @param {[type]} options  [description]
+ */
+function setPvData (pvdataCt, options) {
+  let config = Object.assign({}, {needEncrypt: false}, options)
+  if (config.needEncrypt) {
+    // function encryptPvData (pvDataStr, priStr) {
+    pvdataCt = encryptPvData(pvdataCt, priStr)
+  }
+  fs.writeFileSync(configParam.tkDataPath.pvdata, pvdataCt)
+}
 // function setPvData (did, pvdata, sign, priStr, needEncrypt = false) {
+/**
+ * 当前此方法只处理了pvdata，没有bigdata/didttm。
+ * 日后会补全。
+ * @param  {[type]} did      [description]
+ * @param  {[type]} key      [description]
+ * @param  {String} type     [description]
+ * @param  {[type]} pvdataCt [description]
+ * @param  {[type]} sign     [description]
+ * @return {[type]}          [description]
+ */
 function pushBackupData (did, key, type = 'pvdata', pvdataCt, sign) {
   // let hash = new Keccak(256)
   // hash.update(did)
@@ -322,7 +348,43 @@ function pushBackupData (did, key, type = 'pvdata', pvdataCt, sign) {
   //   pvdata = '0x' + tokenSDKServer.utils.arrToHexStr(tokenSDKServer.sm4.encrypt(pvdata, priStr))
   // }
 
-  console.log('pushBackupData', did, key, type, pvdataCt, sign)
+  // console.log('pushBackupData', did, key, type, pvdataCt, sign)
+  // switch (synergy) {
+  //   case 'both':
+  //   default:
+  //     break
+  //   case 'local':
+  //     break
+  //   case 'chain':
+  //     break
+  // }
+  // let config = Object.assign({}, {synergy = 'local'}, options)
+  // if (config.synergy === 'local') {
+  //   fs.writeFileSync(configParams.tkDataPath.pvdata, pvdataCt)
+  // } else if (config.synergy === 'chain') {
+  //   return instance({
+  //     url: '',
+  //     method: 'post',
+  //     data: {
+  //       "jsonrpc":"2.0",
+  //       "method":"dp_setDepository",
+  //       "params":[did, key, type, pvdataCt, sign],
+  //       "id":1
+  //     }
+  //   })
+  // } else {
+  //   fs.writeFileSync(configParams.tkDataPath.pvdata, pvdataCt)
+  //   return instance({
+  //     url: '',
+  //     method: 'post',
+  //     data: {
+  //       "jsonrpc":"2.0",
+  //       "method":"dp_setDepository",
+  //       "params":[did, key, type, pvdataCt, sign],
+  //       "id":1
+  //     }
+  //   })
+  // }
   return instance({
     url: '',
     method: 'post',
@@ -354,7 +416,6 @@ function pushBackupData (did, key, type = 'pvdata', pvdataCt, sign) {
 //   return mt
 // }
 function decryptPvData(pvdataCt, priStr) {
-// function decryptPvData(pvdataCt, priStr) {
   if (!pvdataCt) {
     pvdataCt = fs.readFileSync('./tokenSDKData/pvdataCt.txt')
     pvdataCt = pvdataCt.toString()
@@ -367,6 +428,27 @@ function decryptPvData(pvdataCt, priStr) {
   let mt = sm4.decrypt(ct, priStr, {hashKey: true})
   return utils.encode(mt)
 }
+
+/**
+ * 加密pvdata
+ * @param  {string | object} pvDataStr pvdata的明文字符串
+ * @param  {string}          priStr    密码
+ * @return {hexstr}                    密文。十六进制字符串
+ */
+function encryptPvData (pvDataStr, priStr) {
+  if (typeof pvDataStr !== 'string') {
+    pvDataStr = JSON.stringify(pvDataStr)
+  }
+  if (!priStr) {
+    priStr = JSON.parse(decryptDidttm().data).prikey
+  }
+  pvDataStr = utils.decode(pvDataStr)
+  priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
+  let ct = sm4.encrypt(pvDataStr, priStr, {hashKey: true})
+  ct = utils.arrToHexStr(ct)
+  return '0x' + ct
+}
+
 /**
  * 获得didList
  * @param  {[type]} phone [description]
@@ -573,7 +655,8 @@ function cancelCertify (claim_sn, did, hashCont, endtime, pri) {
  * @param  {[type]} certifySignUuid [description]
  * @return {[type]}                 [description]
  */
-function signCertify(did, claim_sn, name, templateId, hashValue, explain, expire, sign) {
+// function signCertify(did, claim_sn, name, templateId, hashValue, explain, expire, sign) {
+function submitSignCertify(did, claim_sn, name, templateId, hashValue, explain, expire, sign) {
   return instance({
     // url: '/claim/validate',
     url: '',
@@ -822,9 +905,10 @@ module.exports = {
   encryptDidttm,
   decryptDidttm,
   getPvData,
-  // setPvData,
+  setPvData,
   pushBackupData,
   decryptPvData,
+  encryptPvData,
   getDidList,
   getCheckCode,
 
@@ -844,7 +928,7 @@ module.exports = {
   checkCommonCertify,
   cancelCheckCommonCertify,
   cancelCertify,
-  signCertify,
+  submitSignCertify,
   // genKey,
   applyCertify,
   checkHashValue,
