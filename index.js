@@ -861,6 +861,7 @@ function hashKeccak256 (msg, format = 'hex') {
   hash.reset()
   return hashStr
 }
+
 // 从远端拉取数据
 function pullBackupData (key, needHask = true) {
   if (needHask) {

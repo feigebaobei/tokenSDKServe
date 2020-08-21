@@ -264,6 +264,7 @@ let decryptPvData = function (pvdataCt, priStr) {
   return encode(mt)
 }
 
+// 解密图片
 let decryptPic = function (picCt, priStr) {
   priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
   let ct = tokenSDKServer.utils.hexStrToArr(picCt)
@@ -729,20 +730,53 @@ let pushData = (did, type, ct, {priStr, phone, parent_did}) => {
  * @return {[string]}          [指定格式的字符串]
  */
 // let genBindQrStr = (reqUserInfoKeys, reqUserLevel, sessionId, title = '') => {
-let genBindQrStr = (reqUserInfoKeys, reqUserLevel, sessionId, title = '', expire = new Date().getTime() + 60 * 1000) => {
+let genBindQrStr = (reqUserInfoKeys = [], reqUserLevel, sessionId = '', title = '', expire = new Date().getTime() + 60 * 1000) => {
   if (!(reqUserInfoKeys instanceof Array)) {
     throw new Error('reqUserInfoKeys not is Array')
   }
   if (['N', 'R', 'M'].indexOf(reqUserLevel) < 0) {
     throw new Error('reqUserLevel 只能是N | R | M')
   }
-  if (!sessionId) {
-    throw new Error('sessionId is invalid')
-  }
+  // if (!sessionId) {
+  //   throw new Error('sessionId is invalid')
+  // }
   return JSON.stringify({
     method: 'bind',
     content: {
       type: 'bindRequest',
+      title: title,
+      sessionId: sessionId,
+      reqUserLevel: reqUserLevel,
+      reqUserInfoKeys: reqUserInfoKeys,
+    },
+    expire: String(expire),
+    sender: didttm.did
+  })
+}
+
+/**
+ * 生成用于渲染授权的qr
+ * @param  {Array}  reqUserInfoKeys [description]
+ * @param  {[type]} reqUserLevel    [description]
+ * @param  {String} sessionId       [description]
+ * @param  {String} title           [description]
+ * @param  {Date}   expire          [description]
+ * @return {[type]}                 [description]
+ */
+let genAuthQrStr = (reqUserInfoKeys = [], reqUserLevel, sessionId = '', title = '', expire = new Date().getTime() + 60 * 1000) => {
+  if (!(reqUserInfoKeys instanceof Array)) {
+    throw new Error('reqUserInfoKeys not is Array')
+  }
+  if (['N', 'R', 'M'].indexOf(reqUserLevel) < 0) {
+    throw new Error('reqUserLevel 只能是N | R | M')
+  }
+  // if (!sessionId) {
+  //   throw new Error('sessionId is invalid')
+  // }
+  return JSON.stringify({
+    method: 'auth',
+    content: {
+      type: 'authRequest',
       title: title,
       sessionId: sessionId,
       reqUserLevel: reqUserLevel,
@@ -763,78 +797,15 @@ let getPrivateConfig = () => {
 
 // 在pvdata.pendingTask里添加待办项
 let addPendingTask = (item, claim_sn, type) => {
-  // console.log('addPendingTask 12345ytrew')
-  // let config = Object.assign({}, {
-  //   origin: 'local',
-  //   // backup: false
-  // }, options)
-  // function getCertifyFingerPrint (claim_sn, hasSignList = false) {
-  // item = {
-  //   id:
-  //   // templateId:
-  //   // templateTitle:
-  //   createTime:
-  //   // type:
-  //   // desc:
-  //   members:
-  //   keys:
-  // }
-  // item: {
-  //   msgObj: {},
-  //   isPersonCheck:
-  //   isPdidCheck:
-  // }
-  // if (!item.id || !item.createTime || !item.members || !item.keys) {
-  //   throw new Error('参数错误')
-  // }
-  // 完善item的数据
-  // 获取template
-  // return tokenSDKServer.getCertifyFingerPrint(claim_sn).then(response => {
-  //   if (response.data.result) {
-  //     return response.data.result.template_id
-  //   } else {
-  //     return Promise.reject({isError: true, payload: new Error('获取证书指纹失败')})
-  //   }
-  // })
-  // .then(templateId => {
-  //   // item.templateId = templateId
-  //   return tokenSDKServer.getTemplate(templateId).then(response => {
-  //     let result = response.data.result
-  //     if (result) {
-  //       // 不确定这些属性会在什么地方用到
-  //       // item.templateTitle = result.title
-  //       // item.type = result.type
-  //       // item.desc = JSON.parse(result.meta_cont).desc
-  //       return true
-  //     } else {
-  //       return Promise.reject({isError: true, payload: new Error('获取证书模板失败')})
-  //     }
-  //   })
-  // })
-  // // 添加item，并保存pvdata.
-  // .then(bool => {
-  //   // console.log(bool, item)
-  //   let pvdataStr = tokenSDKServer.getPvData()
-  //   // console.log('pvdataStr', pvdataStr)
-  //   pvdata = pvdataStr.toString()
-  //   pvdata = JSON.parse(pvdata)
-  //   pvdata.pendingTask[item.id] = item
-  //   // console.log(pvdata)
-  //   let pvdataCt = encryptPvData(pvdata, priStr)
-  //   fs.writeFileSync('./tokenSDKData/pvdataCt.txt', pvdataCt)
-  //   return Promise.reject({isError: false})
-  // })
-  // .catch(({isError, payload}) => {
-  //   if (isError) {
-  //     return {error: payload, result: null}
-  //   } else {
-  //     return Promise.resolve({error: null, result: true})
-  //   }
-  // })
   item = {
     msgObj: item,
-    idPersonCheck: false,
+    // isPersonCheck: false,
+    // isPdidCheck: false,
+    // isPersonCheck: null,
+    // isPdidCheck: null,
+    isPersonCheck: false,
     isPdidCheck: false,
+    auditor: '',
     type: type
   }
   // console.log('item', item)
@@ -1021,6 +992,44 @@ let movePendinTaskToCertifies = (claim_sn) => {
   }
 }
 
+// 删除pendingTask里的指定数据
+let delPendingTaskItem = (claim_sn) => {
+  let pvdataStr = tokenSDKServer.getPvData()
+  let pvdata = JSON.parse(pvdataStr)
+  // let pendingTask = pvdata.
+  if (pvdata.pendingTask[claim_sn]) {
+    delete pvdata.pendingTask[claim_sn]
+    tokenSDKServer.setPvData(pvdata, {needEncrypt: true})
+    return true
+  } else {
+    return false
+  }
+}
+
+/**
+ * 设置人工审核的结果
+ * @param  {[string]} claim_sn [claim_sn]
+ * @param  {[boolean]} opResult [是否通过]
+ * @param  {[string]} auditor     操作员 did
+ * @return {[boolean]}          [description]
+ */
+let setPendingItemIsPersonCheck = (claim_sn, opResult, auditor) => {
+  let pvdataStr = tokenSDKServer.getPvData()
+  let pvdata = JSON.parse(pvdataStr)
+  let pendingTask = pvdata.pendingTask ? pvdata.pendingTask : {}
+  let item = pendingTask[claim_sn]
+  if (item) {
+    pvdata.pendingTask[claim_sn].isPersonCheck = !!opResult
+    pvdata.pendingTask[claim_sn].auditor = auditor
+    tokenSDKServer.setPvData(pvdata, {needEncrypt: true})
+    // return true
+    return {error: null, reulst: true}
+  } else {
+    // return false
+    return {error: new Error(configParam.errorMap.setPendingItemIsPersonCheck.message), reulst: false}
+  }
+}
+
 module.exports = Object.assign(
   {},
   tokenSDKServer,
@@ -1054,11 +1063,14 @@ module.exports = Object.assign(
     // pushData,
     // pushBackupData,
     genBindQrStr,
+    genAuthQrStr,
     getPrivateConfig,
     addPendingTask,
     getPriStr,
     hasValidSign,
     signCertify,
-    movePendinTaskToCertifies
+    movePendinTaskToCertifies,
+    delPendingTaskItem,
+    setPendingItemIsPersonCheck
   }
 )
