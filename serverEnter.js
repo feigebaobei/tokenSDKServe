@@ -847,7 +847,7 @@ let hasValidSign = (claim_sn, did) => {
   })
   .catch(({isError, payload}) => {
     if (isError) {
-      return Promise.reject({error: payload, result: null})
+      return Promise.resolve({error: payload, result: null})
     } else {
       return Promise.resolve({error: null, result: payload})
     }
@@ -909,7 +909,7 @@ let signCertify = (claim_sn, explain = '', expire = Date.now() + 30 * 24 * 60 * 
     // console.log('isError', isError)
     // console.log('payload', payload)
     if (isError) {
-      return Promise.reject({error: payload, result: null})
+      return Promise.resolve({error: payload, result: null})
     } else {
       return Promise.resolve({error: null, result: payload})
     }
@@ -924,7 +924,7 @@ let signCertify = (claim_sn, explain = '', expire = Date.now() + 30 * 24 * 60 * 
  * @param  {[string]}  claim_sn [claim_sn]
  * @return {[promise]}          [{error, result}]
  */
-let movePendinTaskToCertifies = (claim_sn) => {
+let movePendingTaskToCertifies = (claim_sn) => {
   let pvdataStr = tokenSDKServer.getPvData()
   let pvdata = JSON.parse(pvdataStr)
   let pendingTask = pvdata.pendingTask ? pvdata.pendingTask : {}
@@ -957,10 +957,9 @@ let movePendinTaskToCertifies = (claim_sn) => {
     .then(bool => {
       let pvdataStr = tokenSDKServer.getPvData()
       let pvdata = JSON.parse(pvdataStr)
-      // let confirmed = pvdata.certifies.confirmed ? pvdata.certifies.confirmed : []
       let certifies = pvdata.certifies ? pvdata.certifies : {}
       tokenSDKServer.utils.setEmptyProperty(certifies, 'confirmed', [])
-      let pendingTask = pvdata.pendingTask ? pvdata.pendingTask : {}
+      let obj = {}
       switch (item.type) {
         case 'businessLicenseConfirm':
           obj = {
@@ -977,22 +976,23 @@ let movePendinTaskToCertifies = (claim_sn) => {
         default:
           break
       }
-      confirmed.push(obj)
+      certifies.confirmed.push(obj)
+      let pendingTask = pvdata.pendingTask ? pvdata.pendingTask : {}
       delete pendingTask[claim_sn]
-      pvdata.certifies.confirmed = confirmed
+      pvdata.certifies = certifies
       pvdata.pendingTask = pendingTask
       tokenSDKServer.setPvData(pvdata, {needEncrypt: true})
       return Promise.reject({isError: false, payload: true})
     })
     .catch(({isError, payload}) => {
       if (isError) {
-        return Promise.reject({error: payload, result: null})
+        return Promise.resolve({error: payload, result: null})
       } else {
         return Promise.resolve({error: null, result: payload})
       }
     })
   } else {
-    return Promise.reject({error: new Error(configParam.errorMap.noPendingTaskItem.message), result: null})
+    return Promise.resolve({error: new Error(configParam.errorMap.noPendingTaskItem.message), result: null})
   }
 }
 
@@ -1073,7 +1073,7 @@ module.exports = Object.assign(
     getPriStr,
     hasValidSign,
     signCertify,
-    movePendinTaskToCertifies,
+    movePendingTaskToCertifies,
     delPendingTaskItem,
     setPendingItemIsPersonCheck
   }
