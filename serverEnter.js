@@ -10,6 +10,8 @@ const path = require('path')
 
 const rootPath = 'tokenSDKData'
 const configParam = require('./lib/config.js')
+// const utils = require('./lib/utils')
+
 const {didttm, idpwd} = require('../../tokenSDKData/privateConfig.js')
 // console.log('serverEnter', didttm, idpwd)
 const priStr = JSON.parse(tokenSDKServer.decryptDidttm(didttm, idpwd).data).prikey
@@ -955,7 +957,9 @@ let movePendinTaskToCertifies = (claim_sn) => {
     .then(bool => {
       let pvdataStr = tokenSDKServer.getPvData()
       let pvdata = JSON.parse(pvdataStr)
-      let confirmed = pvdata.certifies.confirmed ? pvdata.certifies.confirmed : []
+      // let confirmed = pvdata.certifies.confirmed ? pvdata.certifies.confirmed : []
+      let certifies = pvdata.certifies ? pvdata.certifies : {}
+      tokenSDKServer.utils.setEmptyProperty(certifies, 'confirmed', [])
       let pendingTask = pvdata.pendingTask ? pvdata.pendingTask : {}
       switch (item.type) {
         case 'businessLicenseConfirm':
