@@ -484,14 +484,23 @@ let init = (synergy = true, {
     // 拉取远端的pvdataCt
     tokenSDKServer.getPvData({origin: 'chain'}).then(response => {
       // console.log('response', response)
-      // console.log(response.data.result.data)
+      // console.log('pull pvdataCt', response.data.result.data)
       if (response.data.error) {
-        return P
+        return Promise.reject({isError: true, payload: new Error('请求区块链上的pvdata失败')})
       } else {
         fs.writeFileSync('./tokenSDKData/pvdataCt.txt', response.data.result.data)
+        return Promise.reject({isError: false, payload: true})
       }
-    }).catch(error => {
-      console.log('error', error)
+    })
+    // .catch(error => {
+    //   console.log('error', error)
+    // })
+    .catch(({isError, payload}) => {
+      if (isError) {
+        return Promise.resolve({error: payload, result: null})
+      } else {
+        return Promise.resolve({error: null, result: payload})
+      }
     })
   }
   // 绑定消息触发的回调方法

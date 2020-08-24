@@ -426,6 +426,14 @@ function decryptPvData(pvdataCt, priStr) {
   priStr = priStr.indexOf('0x') === 0 ? priStr.slice(2) : priStr
   let ct = utils.hexStrToArr(pvdataCt)
   let mt = sm4.decrypt(ct, priStr, {hashKey: true})
+  /**
+   * 注意这里会有坑。
+   * 完整的流程是：明文->编码->16进制->加密
+   * 有时xx不一定能严格按照该流程执行。
+   * 如果有人发现了这段注释。恭喜你，快解决“无法解密pvdata”问题了。
+   * 请把下面的console.log()放开注释，再运行一次代码。
+   */
+  // console.log('mt', mt)
   return utils.encode(mt)
 }
 
