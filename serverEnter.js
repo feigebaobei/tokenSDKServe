@@ -431,6 +431,7 @@ let rmEmptyDir = (path) => {
 
 /**
  * 初始化sdk
+ * @param  {boollean}  synergy              [是否拉取区块链上的pvdata到本地]
  * @param  {function}  options.openfn       [当open时触发的方法]
  * @param  {function}  options.messagefn    [当message时触发的方法]
  * @param  {function}  options.errorfn      [当error时触发的方法]
@@ -439,35 +440,6 @@ let rmEmptyDir = (path) => {
  * @param  {Boolean}   options.isDev        [description]
  * @return {[type]}                       [description]
  */
-// let init = ({openfn = null, messagefn = null, errorfn = null, closefn = null, reConnectGap = null, isDev = false}) => {
-//   // 检查参数
-//   if (openfn !== null) {
-//     if (typeof(openfn) !== 'function') {
-//       throw new Error('openfn not is function')
-//     }
-//   }
-//   if (messagefn !== null) {
-//     if (typeof(messagefn) !== 'function') {
-//       throw new Error('messagefn not is function')
-//     }
-//   }
-//   if (errorfn !== null) {
-//     if (typeof(errorfn) !== 'function') {
-//       throw new Error('errorfn not is function')
-//     }
-//   }
-//   if (closefn !== null) {
-//     if (typeof(closefn) !== 'function') {
-//       throw new Error('closefn not is function')
-//     }
-//   }
-//   if (reConnectGap) {
-//     if (typeof(reConnectGap) === 'number') {
-//       throw new Error('reConnectGap not is number')
-//     }
-//   }
-//   return tokenSDKServer.wsc({openfn, messagefn, errorfn, closefn, reConnectGap, isDev})
-// }
 let init = (synergy = true, {
   authfn = null,
   bindfn = null,
@@ -483,8 +455,6 @@ let init = (synergy = true, {
   if (synergy) {
     // 拉取远端的pvdataCt
     tokenSDKServer.getPvData({origin: 'chain'}).then(response => {
-      // console.log('response', response)
-      // console.log('pull pvdataCt', response.data.result.data)
       if (response.data.error) {
         return Promise.reject({isError: true, payload: new Error('请求区块链上的pvdata失败')})
       } else {
@@ -492,9 +462,6 @@ let init = (synergy = true, {
         return Promise.reject({isError: false, payload: true})
       }
     })
-    // .catch(error => {
-    //   console.log('error', error)
-    // })
     .catch(({isError, payload}) => {
       if (isError) {
         return Promise.resolve({error: payload, result: null})
