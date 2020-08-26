@@ -247,27 +247,6 @@ function decryptDidttm (options) {
 }
 
 /**
- * 获得pvdata
- * @return {[type]} [description]
- */
-// function getPvData (did) {
-//   let hash = new Keccak(256)
-//   hash.update(did)
-//   let hashStr = '0x' + hash.digest('hex')
-//   hash.reset()
-//   return instance({
-//     url: '',
-//     method: 'post',
-//     data: {
-//       "jsonrpc":"2.0",
-//       "method":"dp_getDepository",
-//       "params":[hashStr],
-//       "id":1
-//     }
-//   })
-// }
-
-/**
  * 获取pvdata
  * @param  {String}  options.origin  从哪儿获得pvdata.'local':本地,'chain':区块链。
  * @param  {boolean} options.decrypt 是否解密pvdata
@@ -281,7 +260,6 @@ function getPvData(options) {
     did: didttm.did
   }
   config = Object.assign({}, config, options)
-  // console.log('config', config)
   let res = null
   switch (config.origin) {
     case 'local':
@@ -339,7 +317,7 @@ function setPvData (pvdataCt, options) {
  * @param  {[type]} sign     [description]
  * @return {[type]}          [description]
  */
-function pushBackupData (did, key, type = 'pvdata', pvdataCt, sign) {
+function pushBackupData (did, key, type = 'pvdata', pvdataCt, sign, options = {}) {
   // let hash = new Keccak(256)
   // hash.update(did)
   // let key = '0x' + hash.digest('hex')
@@ -347,43 +325,20 @@ function pushBackupData (did, key, type = 'pvdata', pvdataCt, sign) {
   // if (needEncrypt) {
   //   pvdata = '0x' + tokenSDKServer.utils.arrToHexStr(tokenSDKServer.sm4.encrypt(pvdata, priStr))
   // }
-
-  // console.log('pushBackupData', did, key, type, pvdataCt, sign)
-  // switch (synergy) {
-  //   case 'both':
-  //   default:
-  //     break
-  //   case 'local':
-  //     break
-  //   case 'chain':
-  //     break
-  // }
-  // let config = Object.assign({}, {synergy = 'local'}, options)
-  // if (config.synergy === 'local') {
-  //   fs.writeFileSync(configParams.tkDataPath.pvdata, pvdataCt)
-  // } else if (config.synergy === 'chain') {
-  //   return instance({
-  //     url: '',
-  //     method: 'post',
-  //     data: {
-  //       "jsonrpc":"2.0",
-  //       "method":"dp_setDepository",
-  //       "params":[did, key, type, pvdataCt, sign],
-  //       "id":1
-  //     }
-  //   })
-  // } else {
-  //   fs.writeFileSync(configParams.tkDataPath.pvdata, pvdataCt)
-  //   return instance({
-  //     url: '',
-  //     method: 'post',
-  //     data: {
-  //       "jsonrpc":"2.0",
-  //       "method":"dp_setDepository",
-  //       "params":[did, key, type, pvdataCt, sign],
-  //       "id":1
-  //     }
-  //   })
+  let config = Object.assign({}, {
+    needHashKey: false
+    // needEncrypt: false,
+    // priStr: ''
+  }, options)
+  if (config.needHashKey) {
+    let hash = new Keccak(256)
+    hash.update(key)
+    key = '0x' + hash.digest('hex')
+    hash.reset()
+  }
+  // 因为需要sign参数，所以使用加密功能。
+  // if (config.needEncrypt) {
+  //   pvdataCt = encryptPvData(pvdataCt, config.priStr ? config.priStr : priStr)
   // }
   return instance({
     url: '',

@@ -452,24 +452,6 @@ let init = (synergy = true, {
   isDev = false,
   autoReceipt = true,
 }) => {
-  if (synergy) {
-    // 拉取远端的pvdataCt
-    tokenSDKServer.getPvData({origin: 'chain'}).then(response => {
-      if (response.data.error) {
-        return Promise.reject({isError: true, payload: new Error('请求区块链上的pvdata失败')})
-      } else {
-        fs.writeFileSync('./tokenSDKData/pvdataCt.txt', response.data.result.data)
-        return Promise.reject({isError: false, payload: true})
-      }
-    })
-    .catch(({isError, payload}) => {
-      if (isError) {
-        return Promise.resolve({error: payload, result: null})
-      } else {
-        return Promise.resolve({error: null, result: payload})
-      }
-    })
-  }
   // 绑定消息触发的回调方法
   let mfn = (msgObj) => {
     switch (msgObj.method) {
@@ -517,6 +499,24 @@ let init = (synergy = true, {
         break
     }
   }
+  if (synergy) {
+    // 拉取远端的pvdataCt
+    tokenSDKServer.getPvData({origin: 'chain'}).then(response => {
+      if (response.data.error) {
+        return Promise.reject({isError: true, payload: new Error('请求区块链上的pvdata失败')})
+      } else {
+        fs.writeFileSync('./tokenSDKData/pvdataCt.txt', response.data.result.data)
+        return Promise.reject({isError: false, payload: true})
+      }
+    })
+    .catch(({isError, payload}) => {
+      if (isError) {
+        return Promise.resolve({error: payload, result: null})
+      } else {
+        return Promise.resolve({error: null, result: payload})
+      }
+    })
+  }
   return tokenSDKServer.wsc({
     messagefn: mfn,
     isDev,
@@ -531,6 +531,8 @@ let init = (synergy = true, {
  * @param  {[type]} configPath [description]
  */
 let config = function (configPath) {
+  console.log('from config')
+  return
   if (!configPath) {
     throw new Error('config file path is error')
   }
