@@ -770,14 +770,8 @@ function applyCertify (templateId, hashCont, endTime, sign) {
  * @return {[type]}            [description]
  */
 function checkHashValue (claim_sn, templateId, certifyData, options = {claimData: false, templateData: false}) {
-// function checkHashValue (claim_sn, templateId, options = {claimData: false, templateData: false}) {
   return Promise.all([getCertifyFingerPrint(claim_sn), getTemplate(templateId)]).then(([claimRes, templateRes]) => {
-    // console.log('claimRes', claimRes.data)
-    // console.log('templateRes', templateRes.data)
-    // let [hashValueChain, certifyData, template] = [claimRes.data.result.hash_cont, templateRes.data.result.meta_cont]
     let [hashValueChain, template] = [claimRes.data.result.hash_cont, templateRes.data.result.meta_cont]
-    // 这里使用硬编码是为了走通逻辑，前天需要庆雪使用相同的哈希方法
-    // hashValueChain = '9900f81fa6e1c509066a333b835ef7205d2abda08fbe8a3409bdd0cfd661a872'
     template = JSON.parse(template)
     let hash = new Keccak(256)
     let descAndHash = template.desc
@@ -792,16 +786,31 @@ function checkHashValue (claim_sn, templateId, certifyData, options = {claimData
     hash.update(descAndHash)
     let hashValueLocal = hash.digest('hex')
     hashValueLocal = '0x' + hashValueLocal
-    return {
-        hashValueLocal: hashValueLocal,
-        hashValueChain: hashValueChain,
-        result: hashValueLocal === hashValueChain,
-        claimData: options.claimData ? claimRes.data.result : '',
-        templateData: options.templateData ? templateRes.data.result : ''
-      }
-  }).catch(error => {
-    console.log('error', error)
-    return Promise.reject(error)
+    // return {
+    //   hashValueLocal: hashValueLocal,
+    //   hashValueChain: hashValueChain,
+    //   result: hashValueLocal === hashValueChain,
+    //   claimData: options.claimData ? claimRes.data.result : '',
+    //   templateData: options.templateData ? templateRes.data.result : ''
+    // }
+    return Promise.reject({isError: false, payload: {
+      hashValueLocal: hashValueLocal,
+      hashValueChain: hashValueChain,
+      result: hashValueLocal === hashValueChain,
+      claimData: options.claimData ? claimRes.data.result : '',
+      templateData: options.templateData ? templateRes.data.result : ''
+    }})
+  })
+  // .catch(error => {
+  //   console.log('error', error)
+  //   return Promise.reject(error)
+  // })
+  .catch(({isError, payload}) => {
+    if (isError) {
+      return Promise.resolve({error: payload, result: null})
+    } else {
+      return Promise.resolve({error: null, result: payload})
+    }
   })
 }
 

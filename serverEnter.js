@@ -774,23 +774,34 @@ let getPrivateConfig = () => {
 }
 
 // 在pvdata.pendingTask里添加待办项
-let addPendingTask = (item, claim_sn, type) => {
-  item = {
-    msgObj: item,
-    // isPersonCheck: false,
-    // isPdidCheck: false,
-    // isPersonCheck: null,
-    // isPdidCheck: null,
-    isPersonCheck: false,
-    isPdidCheck: false,
-    auditor: '',
-    type: type
+// let addPendingTask = (item, claim_sn, type, options) => {
+let addPendingTask = (item, type, options) => {
+  switch (type) {
+    case 'businessLicenseConfirm':
+      item = {
+        msgObj: item,
+        isPersonCheck: false,
+        isPdidCheck: false,
+        auditor: '',
+        type: type
+      }
+      break
+    case 'adidIdentityConfirm':
+      item = {
+        msgObj: item,
+        createTime: Date.now(),
+        randomCode: options.randomCode || '',
+        type: type
+      }
+    default:
+      break
   }
   // console.log('item', item)
   let pvdataStr = tokenSDKServer.getPvData()
-  pvdata = pvdataStr.toString()
-  pvdata = JSON.parse(pvdata)
-  pvdata.pendingTask[claim_sn] = item
+  // pvdata = pvdataStr.toString()
+  pvdata = JSON.parse(pvDataStr)
+  // pvdata.pendingTask[claim_sn] = item
+  pvdata.pendingTask[tokenSDKServer.utils.getUuid()] = item
   let pvdataCt = tokenSDKServer.encryptPvData(pvdata, priStr)
   fs.writeFileSync('./tokenSDKData/pvdataCt.txt', pvdataCt)
 }
@@ -851,7 +862,6 @@ let signCertify = (claim_sn, explain = '', expire = Date.now() + 30 * 24 * 60 * 
     }
   })
   .then(templateId => {
-    // console.log('signCertify', templateId)
     return tokenSDKServer.getTemplate(templateId).then(response => {
       if (!response.data.result) {
         return Promise.reject({isError: true, payload: new Error(configParam.errorMap.getTemplate.message)})
@@ -864,13 +874,10 @@ let signCertify = (claim_sn, explain = '', expire = Date.now() + 30 * 24 * 60 * 
   })
   // 签名并提交
   .then(bool => {
-    // console.log('bool', bool)
     let signObj = `claim_sn=${claim_sn},templateId=${template.template_id},hashCont=${hashValue},did=${didttm.did},name=${didttm.nickname},explain=${explain},expire=${expire}`
     let signData = sign({keys: priStr, msg: signObj})
     let signStr = `0x${signData.r.toString('hex')}${signData.s.toString('hex')}${String(signData.v).length >= 2 ? String(signData.v) : '0'+String(signData.v)}`
-    // console
     return tokenSDKServer.submitSignCertify(didttm.did, claim_sn, didttm.nickname, template.template_id, hashValue, explain, expire, signStr).then(response => {
-      // console.log('signCertify', response)
       if (response.data.result) {
         return Promise.reject({isError: false, payload: true})
       } else {
@@ -878,12 +885,7 @@ let signCertify = (claim_sn, explain = '', expire = Date.now() + 30 * 24 * 60 * 
       }
     })
   })
-  // .catch(error => {
-  //   console.log('error w234rt', error)
-  // })
   .catch(({isError, payload}) => {
-    // console.log('isError', isError)
-    // console.log('payload', payload)
     if (isError) {
       return Promise.resolve({error: payload, result: null})
     } else {
