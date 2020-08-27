@@ -502,6 +502,7 @@ let init = (synergy = true, {
   if (synergy) {
     // 拉取远端的pvdataCt
     tokenSDKServer.getPvData({origin: 'chain'}).then(response => {
+      // console.log(response.data)
       if (response.data.error) {
         return Promise.reject({isError: true, payload: new Error('请求区块链上的pvdata失败')})
       } else {
@@ -778,6 +779,10 @@ let getPrivateConfig = () => {
 // 在pvdata.pendingTask里添加待办项
 // let addPendingTask = (item, claim_sn, type, options) => {
 let addPendingTask = (item, type, options) => {
+  let config = Object.assign({}, {
+    key: '',
+    randomCode: ''
+  }, options)
   switch (type) {
     case 'businessLicenseConfirm':
       item = {
@@ -792,18 +797,15 @@ let addPendingTask = (item, type, options) => {
       item = {
         msgObj: item,
         createTime: Date.now(),
-        randomCode: options.randomCode || '',
+        randomCode: config.randomCode,
         type: type
       }
     default:
       break
   }
-  // console.log('item', item)
   let pvdataStr = tokenSDKServer.getPvData()
-  // pvdata = pvdataStr.toString()
   pvdata = JSON.parse(pvDataStr)
-  // pvdata.pendingTask[claim_sn] = item
-  pvdata.pendingTask[tokenSDKServer.utils.getUuid()] = item
+  pvdata.pendingTask[config.key ? config.key : tokenSDKServer.utils.getUuid()] = item
   let pvdataCt = tokenSDKServer.encryptPvData(pvdata, priStr)
   fs.writeFileSync('./tokenSDKData/pvdataCt.txt', pvdataCt)
 }
