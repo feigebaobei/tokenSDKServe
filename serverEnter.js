@@ -804,7 +804,8 @@ let addPendingTask = (item, type, options) => {
       break
   }
   let pvdataStr = tokenSDKServer.getPvData()
-  pvdata = JSON.parse(pvDataStr)
+  let pvdata = JSON.parse(pvdataStr)
+  tokenSDKServer.utils.setEmptyProperty(pvdata, 'pendingTask', {})
   pvdata.pendingTask[config.key ? config.key : tokenSDKServer.utils.getUuid()] = item
   let pvdataCt = tokenSDKServer.encryptPvData(pvdata, priStr)
   fs.writeFileSync('./tokenSDKData/pvdataCt.txt', pvdataCt)
