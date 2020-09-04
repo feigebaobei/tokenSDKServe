@@ -778,29 +778,43 @@ let getPrivateConfig = () => {
 
 // 在pvdata.pendingTask里添加待办项
 // let addPendingTask = (item, claim_sn, type, options) => {
-let addPendingTask = (item, type, options) => {
+let addPendingTask = (item, type = '', options = {}) => {
   let config = Object.assign({}, {
     key: '',
     randomCode: ''
   }, options)
+  item = {
+    msgObj: item,
+    createTime: Date.now(),
+    type: type
+  }
   switch (type) {
     case 'businessLicenseConfirm':
-      item = {
-        msgObj: item,
-        isPersonCheck: false,
-        isPdidCheck: false,
-        auditor: '',
-        type: type
-      }
+      // item = {
+      //   msgObj: item,
+      //   isPersonCheck: false,
+      //   isPdidCheck: false,
+      //   auditor: '',
+      //   type: type
+      // }
+      item.isPersonCheck = false
+      item.isPdidCheck = false
+      item.auditor = ''
       break
     case 'adidIdentityConfirm':
-      item = {
-        msgObj: item,
-        createTime: Date.now(),
-        randomCode: config.randomCode,
-        type: type
-      }
+      // item = {
+      //   msgObj: item,
+      //   createTime: Date.now(),
+      //   randomCode: config.randomCode,
+      //   type: type
+      // }
+      item.randomCode = config.randomCode
     default:
+      // item = {
+      //   msgObj: item,
+      //   createTime: Date.now(),
+      //   type: type
+      // }
       break
   }
   let pvdataStr = tokenSDKServer.getPvData()
@@ -899,8 +913,6 @@ let signCertify = (claim_sn, explain = '', expire = Date.now() + 30 * 24 * 60 * 
   })
 }
 
-// 把pendingTask里数据放在certifies里。
-// 一般用于完成pendingTask后
 /**
  * 把pendingTask里数据放在certifies里。
  * 一般用于完成pendingTask后
@@ -983,9 +995,12 @@ let movePendingTaskToCertifies = (claim_sn) => {
 let delPendingTaskItem = (claim_sn) => {
   let pvdataStr = tokenSDKServer.getPvData()
   let pvdata = JSON.parse(pvdataStr)
-  // let pendingTask = pvdata.
-  if (pvdata.pendingTask[claim_sn]) {
-    delete pvdata.pendingTask[claim_sn]
+  tokenSDKServer.utils.setEmptyProperty(pvdata, 'pendingTask', [])
+  let pendingTask = pvdata.pendingTask
+  let value = pendingTask[claim_sn]
+  if (value) {
+    // delete pvdata.pendingTask[claim_sn]
+    delete pendingTask[claim_sn]
     tokenSDKServer.setPvData(pvdata, {needEncrypt: true})
     return true
   } else {
@@ -1016,6 +1031,30 @@ let setPendingItemIsPersonCheck = (claim_sn, opResult, auditor) => {
     return {error: new Error(configParam.errorMap.setPendingItemIsPersonCheck.message), reulst: false}
   }
 }
+
+// 添加联系人
+let addContact = (did, type = 'friends') => {
+  let pvdataStr = tokenSDKServer.getPvData()
+  let pvdata = JSON.parse(pvdataStr)
+  tokenSDKServer.utils.setEmptyProperty(pvdata, 'contacts', {
+    admin: [],
+    operator: [],
+    auditor: [],
+    user: [],
+    guest: [],
+    friends: []
+  })
+  // let contacts = pvdata.contacts
+  if (['admin', 'operator', 'auditor', 'user', 'friends'].includes(type)) {
+    pvdata.contacts[type].push(did)
+    tokenSDKServer.setPvData(pvdata, {needEncrypt: true})
+    return true
+  } else {
+    return false
+  }
+}
+// 删除联系人，暂时用不上。
+// delContact
 
 module.exports = Object.assign(
   {},
@@ -1058,6 +1097,7 @@ module.exports = Object.assign(
     signCertify,
     movePendingTaskToCertifies,
     delPendingTaskItem,
-    setPendingItemIsPersonCheck
+    setPendingItemIsPersonCheck,
+    addContact
   }
 )
