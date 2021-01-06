@@ -14,7 +14,7 @@
     "server"
   ],
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "bytecode": "^1.1.0",
     "elliptic": "^6.5.2",
     "ethereumjs-util": "^7.0.2",
